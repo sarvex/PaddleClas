@@ -97,7 +97,7 @@ class DlaBottleneck(nn.Layer):
         self.stride = stride
         mid_planes = int(math.floor(
             outplanes * (base_width / 64)) * cardinality)
-        mid_planes = mid_planes // self.expansion
+        mid_planes //= self.expansion
 
         self.conv1 = nn.Conv2D(inplanes, mid_planes, kernel_size=1, bias_attr=False)
         self.bn1 = nn.BatchNorm2D(mid_planes)
@@ -178,7 +178,7 @@ class DlaTree(nn.Layer):
                     nn.Conv2D(in_channels, out_channels, kernel_size=1, stride=1, bias_attr=False),
                     nn.BatchNorm2D(out_channels))
         else:
-            cargs.update(dict(root_kernel_size=root_kernel_size, root_residual=root_residual))
+            cargs |= dict(root_kernel_size=root_kernel_size, root_residual=root_residual)
             self.tree1 = DlaTree(
                 levels - 1, block, in_channels, 
                 out_channels, stride, root_dim=0, **cargs

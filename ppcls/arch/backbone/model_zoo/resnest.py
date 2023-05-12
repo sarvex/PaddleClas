@@ -59,17 +59,19 @@ class ConvBNLayer(nn.Layer):
             padding=(filter_size - 1) // 2,
             dilation=dilation,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weight"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}_weight"),
+            bias_attr=False,
+        )
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
             param_attr=ParamAttr(
-                name=name + "_scale", regularizer=L2Decay(bn_decay)),
-            bias_attr=ParamAttr(
-                name + "_offset", regularizer=L2Decay(bn_decay)),
-            moving_mean_name=name + "_mean",
-            moving_variance_name=name + "_variance")
+                name=f"{name}_scale", regularizer=L2Decay(bn_decay)
+            ),
+            bias_attr=ParamAttr(f"{name}_offset", regularizer=L2Decay(bn_decay)),
+            moving_mean_name=f"{name}_mean",
+            moving_variance_name=f"{name}_variance",
+        )
 
     def forward(self, x):
         x = self._conv(x)
@@ -128,7 +130,8 @@ class SplatConv(nn.Layer):
             stride=stride,
             groups=groups * radix,
             act="relu",
-            name=name + "_1_weights")
+            name=f"{name}_1_weights",
+        )
 
         self.avg_pool2d = AdaptiveAvgPool2D(1)
 
@@ -142,7 +145,8 @@ class SplatConv(nn.Layer):
             stride=1,
             groups=groups,
             act="relu",
-            name=name + "_2_weights")
+            name=f"{name}_2_weights",
+        )
 
         # to calc atten
         self.conv3 = Conv2D(
@@ -153,8 +157,10 @@ class SplatConv(nn.Layer):
             padding=0,
             groups=groups,
             weight_attr=ParamAttr(
-                name=name + "_weights", initializer=KaimingNormal()),
-            bias_attr=False)
+                name=f"{name}_weights", initializer=KaimingNormal()
+            ),
+            bias_attr=False,
+        )
 
         self.rsoftmax = rSoftmax(radix=radix, cardinality=groups)
 
@@ -173,16 +179,13 @@ class SplatConv(nn.Layer):
         atten = self.conv3(gap)
         atten = self.rsoftmax(atten)
 
-        if self.radix > 1:
-            attens = paddle.split(atten, num_or_sections=self.radix, axis=1)
-            y = paddle.add_n([
-                paddle.multiply(split, att)
-                for (att, split) in zip(attens, splited)
-            ])
-        else:
-            y = paddle.multiply(x, atten)
+        if self.radix <= 1:
+            return paddle.multiply(x, atten)
 
-        return y
+        attens = paddle.split(atten, num_or_sections=self.radix, axis=1)
+        return paddle.add_n(
+            [paddle.multiply(split, att) for (att, split) in zip(attens, splited)]
+        )
 
 
 class BottleneckBlock(nn.Layer):
@@ -224,7 +227,8 @@ class BottleneckBlock(nn.Layer):
             stride=1,
             groups=1,
             act="relu",
-            name=name + "_conv1")
+            name=f"{name}_conv1",
+        )
 
         if avd and avd_first and (stride > 1 or is_first):
             self.avg_pool2d_1 = AvgPool2D(
@@ -242,7 +246,8 @@ class BottleneckBlock(nn.Layer):
                 bias=False,
                 radix=radix,
                 rectify_avg=rectify_avg,
-                name=name + "_splat")
+                name=f"{name}_splat",
+            )
         else:
             self.conv2 = ConvBNLayer(
                 num_channels=group_width,
@@ -252,7 +257,8 @@ class BottleneckBlock(nn.Layer):
                 dilation=dilation,
                 groups=cardinality,
                 act="relu",
-                name=name + "_conv2")
+                name=f"{name}_conv2",
+            )
 
         if avd and avd_first == False and (stride > 1 or is_first):
             self.avg_pool2d_2 = AvgPool2D(
@@ -265,7 +271,8 @@ class BottleneckBlock(nn.Layer):
             stride=1,
             groups=1,
             act=None,
-            name=name + "_conv3")
+            name=f"{name}_conv3",
+        )
 
         if stride != 1 or self.inplanes != self.planes * 4:
             if avg_down:
@@ -284,8 +291,10 @@ class BottleneckBlock(nn.Layer):
                     padding=0,
                     groups=1,
                     weight_attr=ParamAttr(
-                        name=name + "_weights", initializer=KaimingNormal()),
-                    bias_attr=False)
+                        name=f"{name}_weights", initializer=KaimingNormal()
+                    ),
+                    bias_attr=False,
+                )
             else:
                 self.conv4 = Conv2D(
                     in_channels=self.inplanes,
@@ -295,21 +304,25 @@ class BottleneckBlock(nn.Layer):
                     padding=0,
                     groups=1,
                     weight_attr=ParamAttr(
-                        name=name + "_shortcut_weights",
-                        initializer=KaimingNormal()),
-                    bias_attr=False)
+                        name=f"{name}_shortcut_weights",
+                        initializer=KaimingNormal(),
+                    ),
+                    bias_attr=False,
+                )
 
             bn_decay = 0.0
             self._batch_norm = BatchNorm(
                 planes * 4,
                 act=None,
                 param_attr=ParamAttr(
-                    name=name + "_shortcut_scale",
-                    regularizer=L2Decay(bn_decay)),
+                    name=f"{name}_shortcut_scale", regularizer=L2Decay(bn_decay)
+                ),
                 bias_attr=ParamAttr(
-                    name + "_shortcut_offset", regularizer=L2Decay(bn_decay)),
-                moving_mean_name=name + "_shortcut_mean",
-                moving_variance_name=name + "_shortcut_variance")
+                    f"{name}_shortcut_offset", regularizer=L2Decay(bn_decay)
+                ),
+                moving_mean_name=f"{name}_shortcut_mean",
+                moving_variance_name=f"{name}_shortcut_variance",
+            )
 
     def forward(self, x):
         short = x
@@ -370,9 +383,9 @@ class ResNeStLayer(nn.Layer):
         self.last_gamma = last_gamma
         self.is_first = is_first
 
-        if dilation == 1 or dilation == 2:
+        if dilation in [1, 2]:
             bottleneck_func = self.add_sublayer(
-                name + "_bottleneck_0",
+                f"{name}_bottleneck_0",
                 BottleneckBlock(
                     inplanes=self.inplanes,
                     planes=planes,
@@ -387,10 +400,12 @@ class ResNeStLayer(nn.Layer):
                     is_first=is_first,
                     rectify_avg=rectify_avg,
                     last_gamma=last_gamma,
-                    name=name + "_bottleneck_0"))
+                    name=f"{name}_bottleneck_0",
+                ),
+            )
         elif dilation == 4:
             bottleneck_func = self.add_sublayer(
-                name + "_bottleneck_0",
+                f"{name}_bottleneck_0",
                 BottleneckBlock(
                     inplanes=self.inplanes,
                     planes=planes,
@@ -405,14 +420,16 @@ class ResNeStLayer(nn.Layer):
                     is_first=is_first,
                     rectify_avg=rectify_avg,
                     last_gamma=last_gamma,
-                    name=name + "_bottleneck_0"))
+                    name=f"{name}_bottleneck_0",
+                ),
+            )
         else:
             raise RuntimeError("=>unknown dilation size")
 
         self.inplanes = planes * 4
         self.bottleneck_block_list = [bottleneck_func]
         for i in range(1, blocks):
-            curr_name = name + "_bottleneck_" + str(i)
+            curr_name = f"{name}_bottleneck_{str(i)}"
 
             bottleneck_func = self.add_sublayer(
                 curr_name,

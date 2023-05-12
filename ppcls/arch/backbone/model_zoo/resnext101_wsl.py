@@ -30,10 +30,7 @@ class ConvBNLayer(nn.Layer):
                  act=None,
                  name=None):
         super(ConvBNLayer, self).__init__()
-        if "downsample" in name:
-            conv_name = name + ".0"
-        else:
-            conv_name = name
+        conv_name = f"{name}.0" if "downsample" in name else name
         self._conv = Conv2D(
             in_channels=input_channels,
             out_channels=output_channels,
@@ -41,23 +38,24 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=(filter_size - 1) // 2,
             groups=groups,
-            weight_attr=ParamAttr(name=conv_name + ".weight"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{conv_name}.weight"),
+            bias_attr=False,
+        )
         if "downsample" in name:
-            bn_name = name[:9] + "downsample.1"
+            bn_name = f"{name[:9]}downsample.1"
+        elif name == "conv1":
+            bn_name = f"bn{name[-1]}"
         else:
-            if "conv1" == name:
-                bn_name = "bn" + name[-1]
-            else:
-                bn_name = (name[:10] if name[7:9].isdigit() else name[:9]
-                           ) + "bn" + name[-1]
+            bn_name = (name[:10] if name[7:9].isdigit() else name[:9]
+                       ) + "bn" + name[-1]
         self._bn = BatchNorm(
             num_channels=output_channels,
             act=act,
-            param_attr=ParamAttr(name=bn_name + ".weight"),
-            bias_attr=ParamAttr(name=bn_name + ".bias"),
-            moving_mean_name=bn_name + ".running_mean",
-            moving_variance_name=bn_name + ".running_var")
+            param_attr=ParamAttr(name=f"{bn_name}.weight"),
+            bias_attr=ParamAttr(name=f"{bn_name}.bias"),
+            moving_mean_name=f"{bn_name}.running_mean",
+            moving_variance_name=f"{bn_name}.running_var",
+        )
 
     def forward(self, inputs):
         x = self._conv(inputs)
@@ -96,7 +94,8 @@ class BottleneckBlock(nn.Layer):
             output_channels,
             filter_size=1,
             act="relu",
-            name=name + ".conv1")
+            name=f"{name}.conv1",
+        )
         self._conv1 = ConvBNLayer(
             output_channels,
             output_channels,
@@ -104,18 +103,21 @@ class BottleneckBlock(nn.Layer):
             act="relu",
             stride=stride,
             groups=cardinality,
-            name=name + ".conv2")
+            name=f"{name}.conv2",
+        )
         self._conv2 = ConvBNLayer(
             output_channels,
             output_channels // (width // 8),
             filter_size=1,
             act=None,
-            name=name + ".conv3")
+            name=f"{name}.conv3",
+        )
         self._short = ShortCut(
             input_channels,
             output_channels // (width // 8),
             stride=stride,
-            name=name + ".downsample")
+            name=f"{name}.downsample",
+        )
 
     def forward(self, inputs):
         x = self._conv0(inputs)

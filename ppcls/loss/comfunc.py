@@ -41,5 +41,4 @@ def rerange_index(batch_size, samples_each_class):
                 neg_idx.append(k)
         rerange_index += (pos_idx + neg_idx)
 
-    rerange_index = np.array(rerange_index).astype(np.int32)
-    return rerange_index
+    return np.array(rerange_index).astype(np.int32)

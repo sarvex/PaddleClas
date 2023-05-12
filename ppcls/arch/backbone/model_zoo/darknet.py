@@ -43,17 +43,19 @@ class ConvBNLayer(nn.Layer):
             kernel_size=filter_size,
             stride=stride,
             padding=padding,
-            weight_attr=ParamAttr(name=name + ".conv.weights"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}.conv.weights"),
+            bias_attr=False,
+        )
 
-        bn_name = name + ".bn"
+        bn_name = f"{name}.bn"
         self._bn = BatchNorm(
             num_channels=output_channels,
             act="relu",
-            param_attr=ParamAttr(name=bn_name + ".scale"),
-            bias_attr=ParamAttr(name=bn_name + ".offset"),
-            moving_mean_name=bn_name + ".mean",
-            moving_variance_name=bn_name + ".var")
+            param_attr=ParamAttr(name=f"{bn_name}.scale"),
+            bias_attr=ParamAttr(name=f"{bn_name}.offset"),
+            moving_mean_name=f"{bn_name}.mean",
+            moving_variance_name=f"{bn_name}.var",
+        )
 
     def forward(self, inputs):
         x = self._conv(inputs)
@@ -66,9 +68,11 @@ class BasicBlock(nn.Layer):
         super(BasicBlock, self).__init__()
 
         self._conv1 = ConvBNLayer(
-            input_channels, output_channels, 1, 1, 0, name=name + ".0")
+            input_channels, output_channels, 1, 1, 0, name=f"{name}.0"
+        )
         self._conv2 = ConvBNLayer(
-            output_channels, output_channels * 2, 3, 1, 1, name=name + ".1")
+            output_channels, output_channels * 2, 3, 1, 1, name=f"{name}.1"
+        )
 
     def forward(self, inputs):
         x = self._conv1(inputs)

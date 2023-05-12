@@ -50,9 +50,12 @@ class ConvPoolLayer(nn.Layer):
             padding=padding,
             groups=groups,
             weight_attr=ParamAttr(
-                name=name + "_weights", initializer=Uniform(-stdv, stdv)),
+                name=f"{name}_weights", initializer=Uniform(-stdv, stdv)
+            ),
             bias_attr=ParamAttr(
-                name=name + "_offset", initializer=Uniform(-stdv, stdv)))
+                name=f"{name}_offset", initializer=Uniform(-stdv, stdv)
+            ),
+        )
         self._pool = MaxPool2D(kernel_size=3, stride=2, padding=0)
 
     def forward(self, inputs):

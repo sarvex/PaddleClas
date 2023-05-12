@@ -172,8 +172,9 @@ class BottleneckBlock(TheseusLayer):
                 num_filters=num_filters * 4,
                 filter_size=1,
                 stride=stride if if_first else 1,
-                is_vd_mode=False if if_first else True,
-                lr_mult=lr_mult)
+                is_vd_mode=not if_first,
+                lr_mult=lr_mult,
+            )
         self.relu = nn.ReLU()
         self.shortcut = shortcut
 
@@ -183,10 +184,7 @@ class BottleneckBlock(TheseusLayer):
         x = self.conv1(x)
         x = self.conv2(x)
 
-        if self.shortcut:
-            short = identity
-        else:
-            short = self.short(identity)
+        short = identity if self.shortcut else self.short(identity)
         x = paddle.add(x=x, y=short)
         x = self.relu(x)
         return x
@@ -222,8 +220,9 @@ class BasicBlock(TheseusLayer):
                 num_filters=num_filters,
                 filter_size=1,
                 stride=stride if if_first else 1,
-                is_vd_mode=False if if_first else True,
-                lr_mult=lr_mult)
+                is_vd_mode=not if_first,
+                lr_mult=lr_mult,
+            )
         self.shortcut = shortcut
         self.relu = nn.ReLU()
 
@@ -231,10 +230,7 @@ class BasicBlock(TheseusLayer):
         identity = x
         x = self.conv0(x)
         x = self.conv1(x)
-        if self.shortcut:
-            short = identity
-        else:
-            short = self.short(identity)
+        short = identity if self.shortcut else self.short(identity)
         x = paddle.add(x=x, y=short)
         x = self.relu(x)
         return x
@@ -269,13 +265,12 @@ class ResNet(TheseusLayer):
         self.num_channels = self.cfg["num_channels"]
         self.channels_mult = 1 if self.num_channels[-1] == 256 else 4
 
-        assert isinstance(self.lr_mult_list, (
-            list, tuple
-        )), "lr_mult_list should be in (list, tuple) but got {}".format(
-            type(self.lr_mult_list))
-        assert len(self.lr_mult_list
-                   ) == 5, "lr_mult_list length should be 5 but got {}".format(
-                       len(self.lr_mult_list))
+        assert isinstance(
+            self.lr_mult_list, (list, tuple)
+        ), f"lr_mult_list should be in (list, tuple) but got {type(self.lr_mult_list)}"
+        assert (
+            len(self.lr_mult_list) == 5
+        ), f"lr_mult_list length should be 5 but got {len(self.lr_mult_list)}"
 
         self.stem_cfg = {
             #num_channels, num_filters, filter_size, stride

@@ -34,34 +34,50 @@ __all__ = MODEL_URLS.keys()
 
 
 def ConvLayer(in_channels, out_channels, kernel_size=3, stride=1, bias_attr=False):
-    layer = nn.Sequential(
-        ('conv', nn.Conv2D(
-            in_channels, out_channels, kernel_size=kernel_size,
-            stride=stride, padding=kernel_size//2, groups=1, bias_attr=bias_attr
-        )),
+    return nn.Sequential(
+        (
+            'conv',
+            nn.Conv2D(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=kernel_size // 2,
+                groups=1,
+                bias_attr=bias_attr,
+            ),
+        ),
         ('norm', nn.BatchNorm2D(out_channels)),
-        ('relu', nn.ReLU6())
+        ('relu', nn.ReLU6()),
     )
-    return layer
 
 
 def DWConvLayer(in_channels, out_channels, kernel_size=3, stride=1, bias_attr=False):
-    layer = nn.Sequential(
-        ('dwconv', nn.Conv2D(
-            in_channels, out_channels, kernel_size=kernel_size,
-            stride=stride, padding=1, groups=out_channels, bias_attr=bias_attr
-        )),
-        ('norm', nn.BatchNorm2D(out_channels))
+    return nn.Sequential(
+        (
+            'dwconv',
+            nn.Conv2D(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=1,
+                groups=out_channels,
+                bias_attr=bias_attr,
+            ),
+        ),
+        ('norm', nn.BatchNorm2D(out_channels)),
     )
-    return layer
 
 
 def CombConvLayer(in_channels, out_channels, kernel_size=1, stride=1):
-    layer = nn.Sequential(
-        ('layer1', ConvLayer(in_channels, out_channels, kernel_size=kernel_size)),
-        ('layer2', DWConvLayer(out_channels, out_channels, stride=stride))
+    return nn.Sequential(
+        (
+            'layer1',
+            ConvLayer(in_channels, out_channels, kernel_size=kernel_size),
+        ),
+        ('layer2', DWConvLayer(out_channels, out_channels, stride=stride)),
     )
-    return layer
 
 
 class HarDBlock(nn.Layer):
@@ -99,7 +115,7 @@ class HarDBlock(nn.Layer):
                 if i > 0:
                     out_channels *= grmul
 
-        out_channels = int(int(out_channels + 1) / 2) * 2
+        out_channels = int(out_channels + 1) // 2 * 2
         in_channels = 0
 
         for i in link:
@@ -113,21 +129,17 @@ class HarDBlock(nn.Layer):
 
         for layer in range(len(self.layers)):
             link = self.links[layer]
-            tin = []
-            for i in link:
-                tin.append(layers_[i])
-            if len(tin) > 1:
-                x = paddle.concat(tin, 1)
-            else:
-                x = tin[0]
+            tin = [layers_[i] for i in link]
+            x = paddle.concat(tin, 1) if len(tin) > 1 else tin[0]
             out = self.layers[layer](x)
             layers_.append(out)
 
         t = len(layers_)
-        out_ = []
-        for i in range(t):
-            if (i == 0 and self.keepBase) or (i == t-1) or (i % 2 == 1):
-                out_.append(layers_[i])
+        out_ = [
+            layers_[i]
+            for i in range(t)
+            if (i == 0 and self.keepBase) or (i == t - 1) or (i % 2 == 1)
+        ]
         out = paddle.concat(out_, 1)
 
         return out
@@ -149,16 +161,7 @@ class HarDNet(nn.Layer):
         n_layers = [8, 16, 16, 16,  4]
         downSamp = [1,  0,  1,  1,  0]
 
-        if arch == 85:
-            # HarDNet85
-            first_ch = [48, 96]
-            ch_list = [192, 256, 320, 480, 720, 1280]
-            gr = [24,  24,  28,  36,  48, 256]
-            n_layers = [8,  16,  16,  16,  16,   4]
-            downSamp = [1,   0,   1,   0,   1,   0]
-            drop_rate = 0.2
-
-        elif arch == 39:
+        if arch == 39:
             # HarDNet39
             first_ch = [24, 48]
             ch_list = [96, 320, 640, 1024]
@@ -166,6 +169,15 @@ class HarDNet(nn.Layer):
             gr = [16,  20, 64, 160]
             n_layers = [4,  16,  8,   4]
             downSamp = [1,   1,  1,   0]
+
+        elif arch == 85:
+            # HarDNet85
+            first_ch = [48, 96]
+            ch_list = [192, 256, 320, 480, 720, 1280]
+            gr = [24,  24,  28,  36,  48, 256]
+            n_layers = [8,  16,  16,  16,  16,   4]
+            downSamp = [1,   0,   1,   0,   1,   0]
+            drop_rate = 0.2
 
         if depth_wise:
             second_kernel = 1
@@ -216,10 +228,7 @@ class HarDNet(nn.Layer):
             layers.append(nn.AdaptiveAvgPool2D((1, 1)))
 
         if class_dim > 0:
-            layers.append(nn.Flatten())
-            layers.append(nn.Dropout(drop_rate))
-            layers.append(nn.Linear(ch, class_dim))
-
+            layers.extend((nn.Flatten(), nn.Dropout(drop_rate), nn.Linear(ch, class_dim)))
         self.base.append(nn.Sequential(*layers))
 
     def forward(self, x):

@@ -66,8 +66,7 @@ def get_weights_path_from_url(url, md5sum=None):
             local_weight_path = get_weights_path_from_url(resnet18_pretrained_weight_url)
 
     """
-    path = get_path_from_url(url, WEIGHTS_HOME, md5sum)
-    return path
+    return get_path_from_url(url, WEIGHTS_HOME, md5sum)
 
 
 def _map_path(url, root_dir):
@@ -88,7 +87,7 @@ def _get_unique_endpoints(trainer_endpoints):
             continue
         ips.add(ip)
         unique_endpoints.add(endpoint)
-    logger.info("unique_endpoints {}".format(unique_endpoints))
+    logger.info(f"unique_endpoints {unique_endpoints}")
     return unique_endpoints
 
 
@@ -114,7 +113,7 @@ def get_path_from_url(url,
 
     from paddle.fluid.dygraph.parallel import ParallelEnv
 
-    assert is_url(url), "downloading from {} not a url".format(url)
+    assert is_url(url), f"downloading from {url} not a url"
     # parse path after download to decompress under root_dir
     fullpath = _map_path(url, root_dir)
     # Mainly used to solve the problem of downloading data from different 
@@ -123,18 +122,19 @@ def get_path_from_url(url,
     unique_endpoints = _get_unique_endpoints(ParallelEnv()
                                              .trainer_endpoints[:])
     if osp.exists(fullpath) and check_exist and _md5check(fullpath, md5sum):
-        logger.info("Found {}".format(fullpath))
+        logger.info(f"Found {fullpath}")
+    elif ParallelEnv().current_endpoint in unique_endpoints:
+        fullpath = _download(url, root_dir, md5sum)
     else:
-        if ParallelEnv().current_endpoint in unique_endpoints:
-            fullpath = _download(url, root_dir, md5sum)
-        else:
-            while not os.path.exists(fullpath):
-                time.sleep(1)
+        while not os.path.exists(fullpath):
+            time.sleep(1)
 
-    if ParallelEnv().current_endpoint in unique_endpoints:
-        if decompress and (tarfile.is_tarfile(fullpath) or
-                           zipfile.is_zipfile(fullpath)):
-            fullpath = _decompress(fullpath)
+    if (
+        ParallelEnv().current_endpoint in unique_endpoints
+        and decompress
+        and (tarfile.is_tarfile(fullpath) or zipfile.is_zipfile(fullpath))
+    ):
+        fullpath = _decompress(fullpath)
 
     return fullpath
 
@@ -157,28 +157,28 @@ def _download(url, path, md5sum=None):
         if retry_cnt < DOWNLOAD_RETRY_LIMIT:
             retry_cnt += 1
         else:
-            raise RuntimeError("Download from {} failed. "
-                               "Retry limit reached".format(url))
+            raise RuntimeError(f"Download from {url} failed. Retry limit reached")
 
-        logger.info("Downloading {} from {}".format(fname, url))
+        logger.info(f"Downloading {fname} from {url}")
 
         try:
             req = requests.get(url, stream=True)
         except Exception as e:  # requests.exceptions.ConnectionError
             logger.info(
-                "Downloading {} from {} failed {} times with exception {}".
-                format(fname, url, retry_cnt + 1, str(e)))
+                f"Downloading {fname} from {url} failed {retry_cnt + 1} times with exception {str(e)}"
+            )
             time.sleep(1)
             continue
 
         if req.status_code != 200:
-            raise RuntimeError("Downloading from {} failed with code "
-                               "{}!".format(url, req.status_code))
+            raise RuntimeError(
+                f"Downloading from {url} failed with code {req.status_code}!"
+            )
 
         # For protecting download interupted, download to
         # tmp_fullname firstly, move tmp_fullname to fullname
         # after download finished
-        tmp_fullname = fullname + "_tmp"
+        tmp_fullname = f"{fullname}_tmp"
         total_size = req.headers.get('content-length')
         with open(tmp_fullname, 'wb') as f:
             if total_size:
@@ -199,7 +199,7 @@ def _md5check(fullname, md5sum=None):
     if md5sum is None:
         return True
 
-    logger.info("File {} md5 checking...".format(fullname))
+    logger.info(f"File {fullname} md5 checking...")
     md5 = hashlib.md5()
     with open(fullname, 'rb') as f:
         for chunk in iter(lambda: f.read(4096), b""):
@@ -207,8 +207,9 @@ def _md5check(fullname, md5sum=None):
     calc_md5sum = md5.hexdigest()
 
     if calc_md5sum != md5sum:
-        logger.info("File {} md5 check failed, {}(calc) != "
-                    "{}(base)".format(fullname, calc_md5sum, md5sum))
+        logger.info(
+            f"File {fullname} md5 check failed, {calc_md5sum}(calc) != {md5sum}(base)"
+        )
         return False
     return True
 
@@ -217,7 +218,7 @@ def _decompress(fname):
     """
     Decompress for zip and tar file
     """
-    logger.info("Decompressing {}...".format(fname))
+    logger.info(f"Decompressing {fname}...")
 
     # For protecting decompressing interupted,
     # decompress to fpath_tmp directory firstly, if decompress
@@ -229,7 +230,7 @@ def _decompress(fname):
     elif zipfile.is_zipfile(fname):
         uncompressed_path = _uncompress_file_zip(fname)
     else:
-        raise TypeError("Unsupport compress file type {}".format(fname))
+        raise TypeError(f"Unsupport compress file type {fname}")
 
     return uncompressed_path
 
@@ -298,9 +299,7 @@ def _uncompress_file_tar(filepath, mode="r:*"):
 
 
 def _is_a_single_file(file_list):
-    if len(file_list) == 1 and file_list[0].find(os.sep) < -1:
-        return True
-    return False
+    return len(file_list) == 1 and file_list[0].find(os.sep) < -1
 
 
 def _is_a_single_dir(file_list):
@@ -313,7 +312,7 @@ def _is_a_single_dir(file_list):
         new_file_list.append(file_path)
 
     file_name = new_file_list[0].split(os.sep)[0]
-    for i in range(1, len(new_file_list)):
-        if file_name != new_file_list[i].split(os.sep)[0]:
-            return False
-    return True
+    return all(
+        file_name == new_file_list[i].split(os.sep)[0]
+        for i in range(1, len(new_file_list))
+    )

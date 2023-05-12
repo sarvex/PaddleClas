@@ -35,8 +35,9 @@ class CombinedLoss(nn.Layer):
                               dict) and len(config) == 1, "yaml format error"
             name = list(config)[0]
             param = config[name]
-            assert "weight" in param, "weight must be in param, but param just contains {}".format(
-                param.keys())
+            assert (
+                "weight" in param
+            ), f"weight must be in param, but param just contains {param.keys()}"
             self.loss_weight.append(param.pop("weight"))
             self.loss_func.append(eval(name)(**param))
 
@@ -46,12 +47,12 @@ class CombinedLoss(nn.Layer):
             loss = loss_func(input, batch)
             weight = self.loss_weight[idx]
             loss = {key: loss[key] * weight for key in loss}
-            loss_dict.update(loss)
+            loss_dict |= loss
         loss_dict["loss"] = paddle.add_n(list(loss_dict.values()))
         return loss_dict
 
 
 def build_loss(config):
     module_class = CombinedLoss(copy.deepcopy(config))
-    logger.debug("build loss {} success.".format(module_class))
+    logger.debug(f"build loss {module_class} success.")
     return module_class

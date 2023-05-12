@@ -49,8 +49,7 @@ def drop_path(x, drop_prob=0., training=False):
     shape = (paddle.shape(x)[0], ) + (1, ) * (x.ndim - 1)
     random_tensor = keep_prob + paddle.rand(shape, dtype=x.dtype)
     random_tensor = paddle.floor(random_tensor)  # binarize
-    output = x.divide(keep_prob) * random_tensor
-    return output
+    return x.divide(keep_prob) * random_tensor
 
 
 class DropPath(nn.Layer):
@@ -239,14 +238,22 @@ class TNT(nn.Layer):
         # stochastic depth decay rule
         dpr = np.linspace(0, drop_path_rate, depth)
 
-        blocks = []
-        for i in range(depth):
-            blocks.append(Block(
-                dim=embed_dim, in_dim=in_dim, num_pixel=num_pixel, num_heads=num_heads, 
-                in_num_head=in_num_head, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, 
-                drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], 
-                norm_layer=norm_layer
-            ))
+        blocks = [
+            Block(
+                dim=embed_dim,
+                in_dim=in_dim,
+                num_pixel=num_pixel,
+                num_heads=num_heads,
+                in_num_head=in_num_head,
+                mlp_ratio=mlp_ratio,
+                qkv_bias=qkv_bias,
+                drop=drop_rate,
+                attn_drop=attn_drop_rate,
+                drop_path=dpr[i],
+                norm_layer=norm_layer,
+            )
+            for i in range(depth)
+        ]
         self.blocks = nn.LayerList(blocks)
         self.norm = norm_layer(embed_dim)
 

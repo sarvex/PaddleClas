@@ -57,14 +57,10 @@ class TheseusLayer(nn.Layer):
                 if isinstance(self._sub_layers[k], TheseusLayer):
                     self._sub_layers[k].replace_sub(
                         layer_name_pattern, replace_function, recursive)
-                elif isinstance(self._sub_layers[k],
-                                nn.Sequential) or isinstance(
-                                    self._sub_layers[k], nn.LayerList):
+                elif isinstance(self._sub_layers[k], (nn.Sequential, nn.LayerList)):
                     for kk in self._sub_layers[k]._sub_layers.keys():
                         self._sub_layers[k]._sub_layers[kk].replace_sub(
                             layer_name_pattern, replace_function, recursive)
-                else:
-                    pass
 
     '''
     example of replace function:

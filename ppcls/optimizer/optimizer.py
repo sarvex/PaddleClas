@@ -41,13 +41,13 @@ class Momentum(object):
         self.grad_clip = grad_clip
 
     def __call__(self, parameters):
-        opt = optim.Momentum(
+        return optim.Momentum(
             learning_rate=self.learning_rate,
             momentum=self.momentum,
             weight_decay=self.weight_decay,
             grad_clip=self.grad_clip,
-            parameters=parameters)
-        return opt
+            parameters=parameters,
+        )
 
 
 class Adam(object):
@@ -73,7 +73,7 @@ class Adam(object):
         self.lazy_mode = lazy_mode
 
     def __call__(self, parameters):
-        opt = optim.Adam(
+        return optim.Adam(
             learning_rate=self.learning_rate,
             beta1=self.beta1,
             beta2=self.beta2,
@@ -82,8 +82,8 @@ class Adam(object):
             grad_clip=self.grad_clip,
             name=self.name,
             lazy_mode=self.lazy_mode,
-            parameters=parameters)
-        return opt
+            parameters=parameters,
+        )
 
 
 class RMSProp(object):
@@ -114,12 +114,12 @@ class RMSProp(object):
         self.grad_clip = grad_clip
 
     def __call__(self, parameters):
-        opt = optim.RMSProp(
+        return optim.RMSProp(
             learning_rate=self.learning_rate,
             momentum=self.momentum,
             rho=self.rho,
             epsilon=self.epsilon,
             weight_decay=self.weight_decay,
             grad_clip=self.grad_clip,
-            parameters=parameters)
-        return opt
+            parameters=parameters,
+        )

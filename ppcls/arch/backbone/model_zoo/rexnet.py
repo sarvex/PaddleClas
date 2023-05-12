@@ -166,11 +166,18 @@ class ReXNetV1(nn.Layer):
         use_ses = [False, False, True, True, True, True]
 
         layers = [ceil(element * depth_mult) for element in layers]
-        strides = sum([[element] + [1] * (layers[idx] - 1)
-                       for idx, element in enumerate(strides)], [])
+        strides = sum(
+            (
+                [element] + [1] * (layers[idx] - 1)
+                for idx, element in enumerate(strides)
+            ),
+            [],
+        )
         if use_se:
-            use_ses = sum([[element] * layers[idx]
-                           for idx, element in enumerate(use_ses)], [])
+            use_ses = sum(
+                ([element] * layers[idx] for idx, element in enumerate(use_ses)),
+                [],
+            )
         else:
             use_ses = [False] * sum(layers[:])
         ts = [1] * layers[0] + [6] * sum(layers[1:])
@@ -187,12 +194,10 @@ class ReXNetV1(nn.Layer):
         for i in range(self.depth // 3):
             if i == 0:
                 in_channels_group.append(int(round(stem_channel * width_mult)))
-                channels_group.append(int(round(inplanes * width_mult)))
             else:
                 in_channels_group.append(int(round(inplanes * width_mult)))
                 inplanes += final_ch / (self.depth // 3 * 1.0)
-                channels_group.append(int(round(inplanes * width_mult)))
-
+            channels_group.append(int(round(inplanes * width_mult)))
         conv_bn_swish(
             features,
             3,
@@ -201,8 +206,7 @@ class ReXNetV1(nn.Layer):
             stride=2,
             pad=1)
 
-        for block_idx, (in_c, c, t, s, se) in enumerate(
-                zip(in_channels_group, channels_group, ts, strides, use_ses)):
+        for in_c, c, t, s, se in zip(in_channels_group, channels_group, ts, strides, use_ses):
             features.append(
                 LinearBottleneck(
                     in_channels=in_c,

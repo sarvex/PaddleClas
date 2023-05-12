@@ -56,7 +56,7 @@ class ConvBlock(TheseusLayer):
             stride=1,
             padding=1,
             bias_attr=False)
-        if groups == 2 or groups == 3 or groups == 4:
+        if groups in [2, 3, 4]:
             self.conv2 = Conv2D(
                 in_channels=output_channels,
                 out_channels=output_channels,
@@ -64,7 +64,7 @@ class ConvBlock(TheseusLayer):
                 stride=1,
                 padding=1,
                 bias_attr=False)
-        if groups == 3 or groups == 4:
+        if groups in [3, 4]:
             self.conv3 = Conv2D(
                 in_channels=output_channels,
                 out_channels=output_channels,
@@ -87,10 +87,10 @@ class ConvBlock(TheseusLayer):
     def forward(self, inputs):
         x = self.conv1(inputs)
         x = self.relu(x)
-        if self.groups == 2 or self.groups == 3 or self.groups == 4:
+        if self.groups in [2, 3, 4]:
             x = self.conv2(x)
             x = self.relu(x)
-        if self.groups == 3 or self.groups == 4:
+        if self.groups in [3, 4]:
             x = self.conv3(x)
             x = self.relu(x)
         if self.groups == 4:

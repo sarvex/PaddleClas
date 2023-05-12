@@ -93,13 +93,11 @@ def efficientnet(width_coefficient=None,
 
 def get_model_params(model_name, override_params):
     """ Get the block args and global params for a given model """
-    if model_name.startswith('efficientnet'):
-        w, d, _, p = efficientnet_params(model_name)
-        blocks_args, global_params = efficientnet(
-            width_coefficient=w, depth_coefficient=d, dropout_rate=p)
-    else:
-        raise NotImplementedError('model name is not pre-defined: %s' %
-                                  model_name)
+    if not model_name.startswith('efficientnet'):
+        raise NotImplementedError(f'model name is not pre-defined: {model_name}')
+    w, d, _, p = efficientnet_params(model_name)
+    blocks_args, global_params = efficientnet(
+        width_coefficient=w, depth_coefficient=d, dropout_rate=p)
     if override_params:
         global_params = global_params._replace(**override_params)
     return blocks_args, global_params
@@ -124,9 +122,7 @@ def round_filters(filters, global_params):
 def round_repeats(repeats, global_params):
     """ Round number of filters based on depth multiplier. """
     multiplier = global_params.depth_coefficient
-    if not multiplier:
-        return repeats
-    return int(math.ceil(multiplier * repeats))
+    return repeats if not multiplier else int(math.ceil(multiplier * repeats))
 
 
 class BlockDecoder(object):
@@ -167,12 +163,15 @@ class BlockDecoder(object):
     def _encode_block_string(block):
         """Encodes a block to a string."""
         args = [
-            'r%d' % block.num_repeat, 'k%d' % block.kernel_size, 's%d%d' %
-            (block.strides[0], block.strides[1]), 'e%s' % block.expand_ratio,
-            'i%d' % block.input_filters, 'o%d' % block.output_filters
+            'r%d' % block.num_repeat,
+            'k%d' % block.kernel_size,
+            's%d%d' % (block.strides[0], block.strides[1]),
+            f'e{block.expand_ratio}',
+            'i%d' % block.input_filters,
+            'o%d' % block.output_filters,
         ]
         if 0 < block.se_ratio <= 1:
-            args.append('se%s' % block.se_ratio)
+            args.append(f'se{block.se_ratio}')
         if block.id_skip is False:
             args.append('noskip')
         return '_'.join(args)
@@ -187,10 +186,10 @@ class BlockDecoder(object):
             list of BlockArgs namedtuples of block args
         """
         assert isinstance(string_list, list)
-        blocks_args = []
-        for block_string in string_list:
-            blocks_args.append(BlockDecoder._decode_block_string(block_string))
-        return blocks_args
+        return [
+            BlockDecoder._decode_block_string(block_string)
+            for block_string in string_list
+        ]
 
     @staticmethod
     def encode(blocks_args):
@@ -200,30 +199,24 @@ class BlockDecoder(object):
         :param blocks_args: a list of BlockArgs namedtuples of block args
         :return: a list of strings, each string is a notation of block
         """
-        block_strings = []
-        for block in blocks_args:
-            block_strings.append(BlockDecoder._encode_block_string(block))
-        return block_strings
+        return [BlockDecoder._encode_block_string(block) for block in blocks_args]
 
 
 def initial_type(name, use_bias=False):
-    param_attr = ParamAttr(name=name + "_weights")
-    if use_bias:
-        bias_attr = ParamAttr(name=name + "_offset")
-    else:
-        bias_attr = False
+    param_attr = ParamAttr(name=f"{name}_weights")
+    bias_attr = ParamAttr(name=f"{name}_offset") if use_bias else False
     return param_attr, bias_attr
 
 
 def init_batch_norm_layer(name="batch_norm"):
-    param_attr = ParamAttr(name=name + "_scale")
-    bias_attr = ParamAttr(name=name + "_offset")
+    param_attr = ParamAttr(name=f"{name}_scale")
+    bias_attr = ParamAttr(name=f"{name}_offset")
     return param_attr, bias_attr
 
 
 def init_fc_layer(name="fc"):
-    param_attr = ParamAttr(name=name + "_weights")
-    bias_attr = ParamAttr(name=name + "_offset")
+    param_attr = ParamAttr(name=f"{name}_weights")
+    bias_attr = ParamAttr(name=f"{name}_offset")
     return param_attr, bias_attr
 
 
@@ -251,15 +244,13 @@ inp_shape = {
 
 def _drop_connect(inputs, prob, is_test):
     if is_test:
-        output = inputs
-    else:
-        keep_prob = 1.0 - prob
-        inputs_shape = paddle.shape(inputs)
-        random_tensor = keep_prob + paddle.rand(
-            shape=[inputs_shape[0], 1, 1, 1])
-        binary_tensor = paddle.floor(random_tensor)
-        output = paddle.multiply(inputs, binary_tensor) / keep_prob
-    return output
+        return inputs
+    keep_prob = 1.0 - prob
+    inputs_shape = paddle.shape(inputs)
+    random_tensor = keep_prob + paddle.rand(
+        shape=[inputs_shape[0], 1, 1, 1])
+    binary_tensor = paddle.floor(random_tensor)
+    return paddle.multiply(inputs, binary_tensor) / keep_prob
 
 
 class Conv2ds(nn.Layer):
@@ -286,8 +277,11 @@ class Conv2ds(nn.Layer):
             padding = ((stride - 1) + dilation * (filter_size - 1)) // 2
             return padding
 
-        inps = 1 if model_name == None and cur_stage == None else inp_shape[
-            model_name][cur_stage]
+        inps = (
+            1
+            if model_name is None and cur_stage is None
+            else inp_shape[model_name][cur_stage]
+        )
         self.need_crop = False
         if padding_type == "SAME":
             top_padding, bottom_padding = cal_padding(inps, stride,
@@ -375,18 +369,18 @@ class ConvBNLayer(nn.Layer):
                 act=bn_act,
                 momentum=0.99,
                 epsilon=0.001,
-                moving_mean_name=bn_name + "_mean",
-                moving_variance_name=bn_name + "_variance",
+                moving_mean_name=f"{bn_name}_mean",
+                moving_variance_name=f"{bn_name}_variance",
                 param_attr=param_attr,
-                bias_attr=bias_attr)
+                bias_attr=bias_attr,
+            )
 
     def forward(self, inputs):
-        if self.use_bn:
-            x = self._conv(inputs)
-            x = self._bn(x)
-            return x
-        else:
+        if not self.use_bn:
             return self._conv(inputs)
+        x = self._conv(inputs)
+        x = self._bn(x)
+        return x
 
 
 class ExpandConvNorm(nn.Layer):
@@ -410,16 +404,14 @@ class ExpandConvNorm(nn.Layer):
                 bn_act=None,
                 padding_type=padding_type,
                 name=name,
-                conv_name=name + "_expand_conv",
+                conv_name=f"{name}_expand_conv",
                 bn_name="_bn0",
                 model_name=model_name,
-                cur_stage=cur_stage)
+                cur_stage=cur_stage,
+            )
 
     def forward(self, inputs):
-        if self.expand_ratio != 1:
-            return self._conv(inputs)
-        else:
-            return inputs
+        return self._conv(inputs) if self.expand_ratio != 1 else inputs
 
 
 class DepthwiseConvNorm(nn.Layer):
@@ -434,7 +426,7 @@ class DepthwiseConvNorm(nn.Layer):
 
         self.k = block_args.kernel_size
         self.s = block_args.stride
-        if isinstance(self.s, list) or isinstance(self.s, tuple):
+        if isinstance(self.s, (list, tuple)):
             self.s = self.s[0]
         oup = block_args.input_filters * block_args.expand_ratio
 
@@ -447,10 +439,11 @@ class DepthwiseConvNorm(nn.Layer):
             bn_act=None,
             padding_type=padding_type,
             name=name,
-            conv_name=name + "_depthwise_conv",
+            conv_name=f"{name}_depthwise_conv",
             bn_name="_bn1",
             model_name=model_name,
-            cur_stage=cur_stage)
+            cur_stage=cur_stage,
+        )
 
     def forward(self, inputs):
         return self._conv(inputs)
@@ -475,10 +468,11 @@ class ProjectConvNorm(nn.Layer):
             bn_act=None,
             padding_type=padding_type,
             name=name,
-            conv_name=name + "_project_conv",
+            conv_name=f"{name}_project_conv",
             bn_name="_bn2",
             model_name=model_name,
-            cur_stage=cur_stage)
+            cur_stage=cur_stage,
+        )
 
     def forward(self, inputs):
         return self._conv(inputs)
@@ -503,7 +497,8 @@ class SEBlock(nn.Layer):
             use_bias=True,
             padding_type=padding_type,
             act="swish",
-            name=name + "_se_reduce")
+            name=f"{name}_se_reduce",
+        )
 
         self._conv2 = Conv2ds(
             num_squeezed_channels,
@@ -512,14 +507,14 @@ class SEBlock(nn.Layer):
             act="sigmoid",
             use_bias=True,
             padding_type=padding_type,
-            name=name + "_se_expand")
+            name=f"{name}_se_expand",
+        )
 
     def forward(self, inputs):
         x = self._pool(inputs)
         x = self._conv1(x)
         x = self._conv2(x)
-        out = paddle.multiply(inputs, x)
-        return out
+        return paddle.multiply(inputs, x)
 
 
 class MbConvBlock(nn.Layer):
@@ -677,16 +672,18 @@ class ExtractFeatures(nn.Layer):
                 drop_connect_rate *= float(idx) / block_size
 
             _mc_block = self.add_sublayer(
-                "_blocks." + str(idx) + ".",
+                f"_blocks.{str(idx)}.",
                 MbConvBlock(
                     block_args.input_filters,
                     block_args=block_args,
                     padding_type=padding_type,
                     use_se=use_se,
-                    name="_blocks." + str(idx) + ".",
+                    name=f"_blocks.{str(idx)}.",
                     drop_connect_rate=drop_connect_rate,
                     model_name=model_name,
-                    cur_stage=cur_stage))
+                    cur_stage=cur_stage,
+                ),
+            )
             self.conv_seq.append(_mc_block)
             idx += 1
             if block_args.num_repeat > 1:
@@ -697,16 +694,18 @@ class ExtractFeatures(nn.Layer):
                 if drop_connect_rate:
                     drop_connect_rate *= float(idx) / block_size
                 _mc_block = self.add_sublayer(
-                    "block." + str(idx) + ".",
+                    f"block.{str(idx)}.",
                     MbConvBlock(
                         block_args.input_filters,
                         block_args,
                         padding_type=padding_type,
                         use_se=use_se,
-                        name="_blocks." + str(idx) + ".",
+                        name=f"_blocks.{str(idx)}.",
                         drop_connect_rate=drop_connect_rate,
                         model_name=model_name,
-                        cur_stage=cur_stage))
+                        cur_stage=cur_stage,
+                    ),
+                )
                 self.conv_seq.append(_mc_block)
                 idx += 1
             cur_stage += 1
@@ -728,7 +727,7 @@ class EfficientNet(nn.Layer):
                  class_dim=1000):
         super(EfficientNet, self).__init__()
 
-        model_name = 'efficientnet-' + name
+        model_name = f'efficientnet-{name}'
         self.name = name
         self._block_args, self._global_params = get_model_params(
             model_name, override_params)
@@ -744,7 +743,7 @@ class EfficientNet(nn.Layer):
             model_name=self.name)
 
         output_channels = round_filters(1280, self._global_params)
-        if name == "b0_small" or name == "b0" or name == "b1":
+        if name in ["b0_small", "b0", "b1"]:
             oup = 320
         elif name == "b2":
             oup = 352

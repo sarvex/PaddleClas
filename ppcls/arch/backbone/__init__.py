@@ -63,11 +63,11 @@ from ppcls.arch.backbone.variant_models.resnet_variant import ResNet50_last_stag
 def get_apis():
     current_func = sys._getframe().f_code.co_name
     current_module = sys.modules[__name__]
-    api = []
-    for _, obj in inspect.getmembers(current_module,
-                                     inspect.isclass) + inspect.getmembers(
-                                         current_module, inspect.isfunction):
-        api.append(obj.__name__)
+    api = [
+        obj.__name__
+        for _, obj in inspect.getmembers(current_module, inspect.isclass)
+        + inspect.getmembers(current_module, inspect.isfunction)
+    ]
     api.remove(current_func)
     return api
 

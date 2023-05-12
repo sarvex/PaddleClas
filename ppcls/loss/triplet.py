@@ -115,18 +115,20 @@ class TripletLoss(nn.Layer):
             # dist_ap_i.stop_gradient = False
             # dist_ap.append(dist_ap_i)
             dist_ap.append(
-                max([
-                    dist[i][j] if mask_numpy_idx[i][j] == True else float(
-                        "-inf") for j in range(bs)
-                ]).unsqueeze(0))
+                max(
+                    dist[i][j] if mask_numpy_idx[i][j] == True else float("-inf")
+                    for j in range(bs)
+                ).unsqueeze(0)
+            )
             # dist_an_i = paddle.to_tensor(dist[i].numpy()[mask_numpy_idx[i] == False].min(), dtype='float64').unsqueeze(0)
             # dist_an_i.stop_gradient = False
             # dist_an.append(dist_an_i)
             dist_an.append(
-                min([
-                    dist[i][k] if mask_numpy_idx[i][k] == False else float(
-                        "inf") for k in range(bs)
-                ]).unsqueeze(0))
+                min(
+                    dist[i][k] if mask_numpy_idx[i][k] == False else float("inf")
+                    for k in range(bs)
+                ).unsqueeze(0)
+            )
 
         dist_ap = paddle.concat(dist_ap, axis=0)
         dist_an = paddle.concat(dist_an, axis=0)

@@ -655,7 +655,7 @@ class MixNet(nn.Layer):
                 se_factor = se_factors[i][j]
                 activation = "relu" if i == 0 else "swish"
                 stage.add_sublayer(
-                    "unit{}".format(j + 1),
+                    f"unit{j + 1}",
                     MixUnit(
                         in_channels=in_channels,
                         out_channels=out_channels,
@@ -665,9 +665,11 @@ class MixNet(nn.Layer):
                         conv2_kernel_count=conv2_kernel_count,
                         exp_factor=exp_factor,
                         se_factor=se_factor,
-                        activation=activation))
+                        activation=activation,
+                    ),
+                )
                 in_channels = out_channels
-            self.features.add_sublayer("stage{}".format(i + 1), stage)
+            self.features.add_sublayer(f"stage{i + 1}", stage)
         self.features.add_sublayer(
             "final_block",
             ConvBlock(
@@ -738,7 +740,7 @@ def get_mixnet(version, width_scale, model_name=None, **kwargs):
         se_factors = [[0, 0], [2, 2, 2, 2], [4, 4, 4, 4],
                       [2, 2, 2, 2, 2, 2, 2, 2]]
     else:
-        raise ValueError("Unsupported MixNet version {}".format(version))
+        raise ValueError(f"Unsupported MixNet version {version}")
 
     final_block_channels = 1536
 
@@ -747,7 +749,7 @@ def get_mixnet(version, width_scale, model_name=None, **kwargs):
                     for ci in channels]
         init_block_channels = round_channels(init_block_channels * width_scale)
 
-    net = MixNet(
+    return MixNet(
         channels=channels,
         init_block_channels=init_block_channels,
         final_block_channels=final_block_channels,
@@ -756,9 +758,8 @@ def get_mixnet(version, width_scale, model_name=None, **kwargs):
         conv2_kernel_counts=conv2_kernel_counts,
         exp_factors=exp_factors,
         se_factors=se_factors,
-        **kwargs)
-
-    return net
+        **kwargs
+    )
 
 
 def _load_pretrained(pretrained, model, model_url, use_ssld=False):

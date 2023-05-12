@@ -27,6 +27,6 @@ def build_gear(config):
     ]
     module_name = config.pop('name')
     assert module_name in support_dict, Exception(
-        'head only support {}'.format(support_dict))
-    module_class = eval(module_name)(**config)
-    return module_class
+        f'head only support {support_dict}'
+    )
+    return eval(module_name)(**config)

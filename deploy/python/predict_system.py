@@ -93,11 +93,10 @@ class SystemPredictor(object):
 
         # st3: recognition process, use score_thres to ensure accuracy
         for result in results:
-            preds = {}
             xmin, ymin, xmax, ymax = result["bbox"].astype("int")
             crop_img = img[ymin:ymax, xmin:xmax, :].copy()
             rec_results = self.rec_predictor.predict(crop_img)
-            preds["bbox"] = [xmin, ymin, xmax, ymax]
+            preds = {"bbox": [xmin, ymin, xmax, ymax]}
             scores, docs = self.Searcher.search(
                 query=rec_results,
                 return_k=self.return_k,
@@ -108,11 +107,9 @@ class SystemPredictor(object):
                 preds["rec_scores"] = scores[0]
                 output.append(preds)
 
-        # st5: nms to the final results to avoid fetching duplicate results
-        output = self.nms_to_rec_results(
-            output, self.config["Global"]["rec_nms_thresold"])
-
-        return output
+        return self.nms_to_rec_results(
+            output, self.config["Global"]["rec_nms_thresold"]
+        )
 
 
 def main(config):
@@ -120,7 +117,7 @@ def main(config):
     image_list = get_image_list(config["Global"]["infer_imgs"])
 
     assert config["Global"]["batch_size"] == 1
-    for idx, image_file in enumerate(image_list):
+    for image_file in image_list:
         img = cv2.imread(image_file)[:, :, ::-1]
         output = system_predictor.predict(img)
         draw_bbox_results(img, output, image_file)

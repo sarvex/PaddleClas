@@ -74,8 +74,7 @@ class DecodeImage(object):
         data = np.frombuffer(img, dtype='uint8')
         img = cv2.imdecode(data, 1)
         if self.to_rgb:
-            assert img.shape[2] == 3, 'invalid shape of image[%s]' % (
-                img.shape)
+            assert img.shape[2] == 3, f'invalid shape of image[{img.shape}]'
             img = img[:, :, ::-1]
 
         if self.channel_first:
@@ -120,10 +119,7 @@ class CropImage(object):
     """ crop image """
 
     def __init__(self, size):
-        if type(size) is int:
-            self.size = (size, size)
-        else:
-            self.size = size  # (h, w)
+        self.size = (size, size) if type(size) is int else size
 
     def __call__(self, img):
         w, h = self.size
@@ -148,11 +144,7 @@ class RandCropImage(object):
     def __init__(self, size, scale=None, ratio=None, interpolation=-1):
 
         self.interpolation = interpolation if interpolation >= 0 else None
-        if type(size) is int:
-            self.size = (size, size)  # (h, w)
-        else:
-            self.size = size
-
+        self.size = (size, size) if type(size) is int else size
         self.scale = [0.08, 1.0] if scale is None else scale
         self.ratio = [3. / 4., 4. / 3.] if ratio is None else ratio
 
@@ -201,10 +193,7 @@ class RandFlipImage(object):
         self.flip_code = flip_code
 
     def __call__(self, img):
-        if random.randint(0, 1) == 1:
-            return cv2.flip(img, self.flip_code)
-        else:
-            return img
+        return cv2.flip(img, self.flip_code) if random.randint(0, 1) == 1 else img
 
 
 class AutoAugment(object):

@@ -29,11 +29,9 @@ class TopkAcc(nn.Layer):
         if isinstance(x, dict):
             x = x["logits"]
 
-        metric_dict = dict()
-        for k in self.topk:
-            metric_dict["top{}".format(k)] = paddle.metric.accuracy(
-                x, label, k=k)
-        return metric_dict
+        return {
+            f"top{k}": paddle.metric.accuracy(x, label, k=k) for k in self.topk
+        }
 
 
 class mAP(nn.Layer):
@@ -42,8 +40,6 @@ class mAP(nn.Layer):
 
     def forward(self, similarities_matrix, query_img_id, gallery_img_id,
                 keep_mask):
-        metric_dict = dict()
-
         choosen_indices = paddle.argsort(
             similarities_matrix, axis=1, descending=True)
         gallery_labels_transpose = paddle.transpose(gallery_img_id, [1, 0])
@@ -76,8 +72,7 @@ class mAP(nn.Layer):
         precision_mask = paddle.multiply(equal_flag, precision)
         ap = paddle.sum(precision_mask, axis=1) / paddle.sum(equal_flag,
                                                              axis=1)
-        metric_dict["mAP"] = paddle.mean(ap).numpy()[0]
-        return metric_dict
+        return {"mAP": paddle.mean(ap).numpy()[0]}
 
 
 class mINP(nn.Layer):
@@ -86,8 +81,6 @@ class mINP(nn.Layer):
 
     def forward(self, similarities_matrix, query_img_id, gallery_img_id,
                 keep_mask):
-        metric_dict = dict()
-
         choosen_indices = paddle.argsort(
             similarities_matrix, axis=1, descending=True)
         gallery_labels_transpose = paddle.transpose(gallery_img_id, [1, 0])
@@ -119,8 +112,7 @@ class mINP(nn.Layer):
         hard_index = paddle.argmax(auxilary, axis=1).astype("float32")
         all_INP = paddle.divide(paddle.sum(equal_flag, axis=1), hard_index)
         mINP = paddle.mean(all_INP)
-        metric_dict["mINP"] = mINP.numpy()[0]
-        return metric_dict
+        return {"mINP": mINP.numpy()[0]}
 
 
 class Recallk(nn.Layer):
@@ -133,8 +125,6 @@ class Recallk(nn.Layer):
 
     def forward(self, similarities_matrix, query_img_id, gallery_img_id,
                 keep_mask):
-        metric_dict = dict()
-
         #get cmc
         choosen_indices = paddle.argsort(
             similarities_matrix, axis=1, descending=True)
@@ -163,9 +153,7 @@ class Recallk(nn.Layer):
                                    paddle.to_tensor(0.)).astype("float32")
         all_cmc = (paddle.sum(mask, axis=0) / real_query_num).numpy()
 
-        for k in self.topk:
-            metric_dict["recall{}".format(k)] = all_cmc[k - 1]
-        return metric_dict
+        return {f"recall{k}": all_cmc[k - 1] for k in self.topk}
 
 
 class DistillationTopkAcc(TopkAcc):

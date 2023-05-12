@@ -101,10 +101,7 @@ class RepVGGBlock(nn.Layer):
         if not self.training:
             return self.nonlinearity(self.rbr_reparam(inputs))
 
-        if self.rbr_identity is None:
-            id_out = 0
-        else:
-            id_out = self.rbr_identity(inputs)
+        id_out = 0 if self.rbr_identity is None else self.rbr_identity(inputs)
         return self.nonlinearity(
             self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
 
@@ -134,10 +131,7 @@ class RepVGGBlock(nn.Layer):
             kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
 
     def _pad_1x1_to_3x3_tensor(self, kernel1x1):
-        if kernel1x1 is None:
-            return 0
-        else:
-            return nn.functional.pad(kernel1x1, [1, 1, 1, 1])
+        return 0 if kernel1x1 is None else nn.functional.pad(kernel1x1, [1, 1, 1, 1])
 
     def _fuse_bn_tensor(self, branch):
         if branch is None:
@@ -178,7 +172,7 @@ class RepVGG(nn.Layer):
         super(RepVGG, self).__init__()
 
         assert len(width_multiplier) == 4
-        self.override_groups_map = override_groups_map or dict()
+        self.override_groups_map = override_groups_map or {}
 
         assert 0 not in self.override_groups_map
 

@@ -24,8 +24,7 @@ class DecodeImage(object):
         data = np.frombuffer(img, dtype='uint8')
         img = cv2.imdecode(data, 1)
         if self.to_rgb:
-            assert img.shape[2] == 3, 'invalid shape of image[%s]' % (
-                img.shape)
+            assert img.shape[2] == 3, f'invalid shape of image[{img.shape}]'
             img = img[:, :, ::-1]
 
         return img
@@ -46,10 +45,7 @@ class ResizeImage(object):
 
 class CropImage(object):
     def __init__(self, size):
-        if type(size) is int:
-            self.size = (size, size)
-        else:
-            self.size = size
+        self.size = (size, size) if type(size) is int else size
 
     def __call__(self, img):
         w, h = self.size

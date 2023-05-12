@@ -57,7 +57,7 @@ class ClasSystem(nn.Layer):
             try:
                 _places = os.environ["CUDA_VISIBLE_DEVICES"]
                 int(_places[0])
-                print("Use GPU, GPU Memery:{}".format(cfg.Global.gpu_mem))
+                print(f"Use GPU, GPU Memery:{cfg.Global.gpu_mem}")
                 print("CUDA_VISIBLE_DEVICES: ", _places)
             except:
                 raise RuntimeError(
@@ -85,8 +85,7 @@ class ClasSystem(nn.Layer):
         Run as a service.
         """
         input_data = b64_to_np(images, revert_params)
-        results = self.predict(inputs=list(input_data))
-        return results
+        return self.predict(inputs=list(input_data))
 
 
 if __name__ == "__main__":
@@ -98,4 +97,4 @@ if __name__ == "__main__":
     img = cv2.imread(img_path)[:, :, ::-1]
     img = cv2.resize(img, (224, 224)).transpose((2, 0, 1))
     res = module.predict([img.astype(np.float32)])
-    print("The returned result of {}: {}".format(img_path, res))
+    print(f"The returned result of {img_path}: {res}")

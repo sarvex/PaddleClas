@@ -61,8 +61,7 @@ def parse_args():
         action='append',
         default=[],
         help='config options to be overridden')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def main(args):

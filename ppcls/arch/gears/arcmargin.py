@@ -73,5 +73,4 @@ class ArcMargin(nn.Layer):
 
     def _paddle_where_more_than(self, target, limit, x, y):
         mask = paddle.cast(x=(target > limit), dtype='float32')
-        output = paddle.multiply(mask, x) + paddle.multiply((1.0 - mask), y)
-        return output
+        return paddle.multiply(mask, x) + paddle.multiply((1.0 - mask), y)

@@ -61,16 +61,18 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=(filter_size - 1) // 2,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
-        bn_name = name + '_bn'
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
+        bn_name = f'{name}_bn'
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=bn_name + '_scale'),
-            bias_attr=ParamAttr(bn_name + '_offset'),
-            moving_mean_name=bn_name + '_mean',
-            moving_variance_name=bn_name + '_variance')
+            param_attr=ParamAttr(name=f'{bn_name}_scale'),
+            bias_attr=ParamAttr(f'{bn_name}_offset'),
+            moving_mean_name=f'{bn_name}_mean',
+            moving_variance_name=f'{bn_name}_variance',
+        )
 
     def forward(self, inputs):
         if self.is_vd_mode:
@@ -97,7 +99,8 @@ class BottleneckBlock(nn.Layer):
             num_filters=num_filters,
             filter_size=1,
             act='relu',
-            name='conv' + name + '_x1')
+            name=f'conv{name}_x1',
+        )
         self.conv1 = ConvBNLayer(
             num_channels=num_filters,
             num_filters=num_filters,
@@ -105,28 +108,31 @@ class BottleneckBlock(nn.Layer):
             groups=cardinality,
             stride=stride,
             act='relu',
-            name='conv' + name + '_x2')
+            name=f'conv{name}_x2',
+        )
         self.conv2 = ConvBNLayer(
             num_channels=num_filters,
             num_filters=num_filters * 2 if cardinality == 32 else num_filters,
             filter_size=1,
             act=None,
-            name='conv' + name + '_x3')
+            name=f'conv{name}_x3',
+        )
         self.scale = SELayer(
             num_channels=num_filters * 2 if cardinality == 32 else num_filters,
             num_filters=num_filters * 2 if cardinality == 32 else num_filters,
             reduction_ratio=reduction_ratio,
-            name='fc' + name)
+            name=f'fc{name}',
+        )
 
         if not shortcut:
             self.short = ConvBNLayer(
                 num_channels=num_channels,
-                num_filters=num_filters * 2
-                if cardinality == 32 else num_filters,
+                num_filters=num_filters * 2 if cardinality == 32 else num_filters,
                 filter_size=1,
                 stride=1,
-                is_vd_mode=False if if_first else True,
-                name='conv' + name + '_prj')
+                is_vd_mode=not if_first,
+                name=f'conv{name}_prj',
+            )
 
         self.shortcut = shortcut
 
@@ -136,10 +142,7 @@ class BottleneckBlock(nn.Layer):
         conv2 = self.conv2(conv1)
         scale = self.scale(conv2)
 
-        if self.shortcut:
-            short = inputs
-        else:
-            short = self.short(inputs)
+        short = inputs if self.shortcut else self.short(inputs)
         y = paddle.add(x=short, y=scale)
         y = F.relu(y)
         return y
@@ -159,16 +162,20 @@ class SELayer(nn.Layer):
             num_channels,
             med_ch,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_sqz_weights"),
-            bias_attr=ParamAttr(name=name + '_sqz_offset'))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_sqz_weights"
+            ),
+            bias_attr=ParamAttr(name=f'{name}_sqz_offset'),
+        )
         self.relu = nn.ReLU()
         stdv = 1.0 / math.sqrt(med_ch * 1.0)
         self.excitation = Linear(
             med_ch,
             num_filters,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_exc_weights"),
-            bias_attr=ParamAttr(name=name + '_exc_offset'))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_exc_weights"
+            ),
+            bias_attr=ParamAttr(name=f'{name}_exc_offset'),
+        )
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, input):
@@ -179,8 +186,7 @@ class SELayer(nn.Layer):
         excitation = self.excitation(squeeze)
         excitation = self.sigmoid(excitation)
         excitation = paddle.unsqueeze(excitation, axis=[2, 3])
-        out = paddle.multiply(input, excitation)
-        return out
+        return paddle.multiply(input, excitation)
 
 
 class ResNeXt(nn.Layer):
@@ -191,19 +197,19 @@ class ResNeXt(nn.Layer):
         self.cardinality = cardinality
         self.reduction_ratio = 16
         supported_layers = [50, 101, 152]
-        assert layers in supported_layers, \
-            "supported layers are {} but input layer is {}".format(
-                supported_layers, layers)
+        assert (
+            layers in supported_layers
+        ), f"supported layers are {supported_layers} but input layer is {layers}"
         supported_cardinality = [32, 64]
-        assert cardinality in supported_cardinality, \
-            "supported cardinality is {} but input cardinality is {}" \
-            .format(supported_cardinality, cardinality)
-        if layers == 50:
-            depth = [3, 4, 6, 3]
-        elif layers == 101:
+        assert (
+            cardinality in supported_cardinality
+        ), f"supported cardinality is {supported_cardinality} but input cardinality is {cardinality}"
+        if layers == 101:
             depth = [3, 4, 23, 3]
         elif layers == 152:
             depth = [3, 8, 36, 3]
+        elif layers == 50:
+            depth = [3, 4, 6, 3]
         num_channels = [128, 256, 512, 1024]
         num_filters = [128, 256, 512,
                        1024] if cardinality == 32 else [256, 512, 1024, 2048]
@@ -233,7 +239,7 @@ class ResNeXt(nn.Layer):
         self.pool2d_max = MaxPool2D(kernel_size=3, stride=2, padding=1)
 
         self.block_list = []
-        n = 1 if layers == 50 or layers == 101 else 3
+        n = 1 if layers in [50, 101] else 3
         for block in range(len(depth)):
             n += 1
             shortcut = False
@@ -241,15 +247,18 @@ class ResNeXt(nn.Layer):
                 bottleneck_block = self.add_sublayer(
                     'bb_%d_%d' % (block, i),
                     BottleneckBlock(
-                        num_channels=num_channels[block] if i == 0 else
-                        num_filters[block] * int(64 // self.cardinality),
+                        num_channels=num_channels[block]
+                        if i == 0
+                        else num_filters[block] * int(64 // self.cardinality),
                         num_filters=num_filters[block],
                         stride=2 if i == 0 and block != 0 else 1,
                         cardinality=self.cardinality,
                         reduction_ratio=self.reduction_ratio,
                         shortcut=shortcut,
                         if_first=block == 0,
-                        name=str(n) + '_' + str(i + 1)))
+                        name=f'{n}_{str(i + 1)}',
+                    ),
+                )
                 self.block_list.append(bottleneck_block)
                 shortcut = True
 

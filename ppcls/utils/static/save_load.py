@@ -38,19 +38,17 @@ def _mkdir_if_not_exist(path):
             os.makedirs(path)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(path):
-                logger.warning(
-                    'be happy if some process has already created {}'.format(
-                        path))
+                logger.warning(f'be happy if some process has already created {path}')
             else:
-                raise OSError('Failed to mkdir {}'.format(path))
+                raise OSError(f'Failed to mkdir {path}')
 
 
 def _load_state(path):
-    if os.path.exists(path + '.pdopt'):
+    if os.path.exists(f'{path}.pdopt'):
         # XXX another hack to ignore the optimizer state
         tmp = tempfile.mkdtemp()
         dst = os.path.join(tmp, os.path.basename(os.path.normpath(path)))
-        shutil.copy(path + '.pdparams', dst + '.pdparams')
+        shutil.copy(f'{path}.pdparams', f'{dst}.pdparams')
         state = paddle.static.load_program_state(dst)
         shutil.rmtree(tmp)
     else:
@@ -70,13 +68,10 @@ def load_params(exe, prog, path, ignore_params=None):
             and the usage can refer to the document
             docs/advanced_tutorials/TRANSFER_LEARNING.md
     """
-    if not (os.path.isdir(path) or os.path.exists(path + '.pdparams')):
-        raise ValueError("Model pretrain path {} does not "
-                         "exists.".format(path))
+    if not (os.path.isdir(path) or os.path.exists(f'{path}.pdparams')):
+        raise ValueError(f"Model pretrain path {path} does not exists.")
 
-    logger.info(
-        logger.coloring('Loading parameters from {}...'.format(path),
-                        'HEADER'))
+    logger.info(logger.coloring(f'Loading parameters from {path}...', 'HEADER'))
 
     ignore_set = set()
     state = _load_state(path)
@@ -95,15 +90,15 @@ def load_params(exe, prog, path, ignore_params=None):
     if ignore_params:
         all_var_names = [var.name for var in prog.list_vars()]
         ignore_list = filter(
-            lambda var: any([re.match(name, var) for name in ignore_params]),
-            all_var_names)
+            lambda var: any(re.match(name, var) for name in ignore_params),
+            all_var_names,
+        )
         ignore_set.update(list(ignore_list))
 
-    if len(ignore_set) > 0:
+    if ignore_set:
         for k in ignore_set:
             if k in state:
-                logger.warning(
-                    'variable {} is already excluded automatically'.format(k))
+                logger.warning(f'variable {k} is already excluded automatically')
                 del state[k]
 
     paddle.static.set_program_state(prog, state)
@@ -113,23 +108,25 @@ def init_model(config, program, exe):
     """
     load model from checkpoint or pretrained_model
     """
-    checkpoints = config.get('checkpoints')
-    if checkpoints:
+    if checkpoints := config.get('checkpoints'):
         paddle.static.load(program, checkpoints, exe)
         logger.info(
-            logger.coloring("Finish initing model from {}".format(checkpoints),
-                            "HEADER"))
+            logger.coloring(
+                f"Finish initing model from {checkpoints}", "HEADER"
+            )
+        )
         return
 
-    pretrained_model = config.get('pretrained_model')
-    if pretrained_model:
+    if pretrained_model := config.get('pretrained_model'):
         if not isinstance(pretrained_model, list):
             pretrained_model = [pretrained_model]
         for pretrain in pretrained_model:
             load_params(exe, program, pretrain)
         logger.info(
-            logger.coloring("Finish initing model from {}".format(
-                pretrained_model), "HEADER"))
+            logger.coloring(
+                f"Finish initing model from {pretrained_model}", "HEADER"
+            )
+        )
 
 
 def save_model(program, model_path, epoch_id, prefix='ppcls'):
@@ -140,6 +137,4 @@ def save_model(program, model_path, epoch_id, prefix='ppcls'):
     _mkdir_if_not_exist(model_path)
     model_prefix = os.path.join(model_path, prefix)
     paddle.static.save(program, model_prefix)
-    logger.info(
-        logger.coloring("Already save model in {}".format(model_path),
-                        "HEADER"))
+    logger.info(logger.coloring(f"Already save model in {model_path}", "HEADER"))

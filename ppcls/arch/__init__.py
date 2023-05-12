@@ -33,20 +33,16 @@ def build_model(config):
     config = copy.deepcopy(config)
     model_type = config.pop("name")
     mod = importlib.import_module(__name__)
-    arch = getattr(mod, model_type)(**config)
-    return arch
+    return getattr(mod, model_type)(**config)
 
 
 def apply_to_static(config, model):
-    support_to_static = config['Global'].get('to_static', False)
-
-    if support_to_static:
+    if support_to_static := config['Global'].get('to_static', False):
         specs = None
         if 'image_shape' in config['Global']:
             specs = [InputSpec([None] + config['Global']['image_shape'])]
         model = to_static(model, input_spec=specs)
-        logger.info("Successfully to apply @to_static with specs: {}".format(
-            specs))
+        logger.info(f"Successfully to apply @to_static with specs: {specs}")
     return model
 
 
@@ -60,24 +56,14 @@ class RecModel(nn.Layer):
             backbone_stop_layer = config["BackboneStopLayer"]["name"]
             self.backbone.stop_after(backbone_stop_layer)
 
-        if "Neck" in config:
-            self.neck = build_gear(config["Neck"])
-        else:
-            self.neck = None
-
-        if "Head" in config:
-            self.head = build_gear(config["Head"])
-        else:
-            self.head = None
+        self.neck = build_gear(config["Neck"]) if "Neck" in config else None
+        self.head = build_gear(config["Head"]) if "Head" in config else None
 
     def forward(self, x, label=None):
         x = self.backbone(x)
         if self.neck is not None:
             x = self.neck(x)
-        if self.head is not None:
-            y = self.head(x, label)
-        else:
-            y = None
+        y = self.head(x, label) if self.head is not None else None
         return {"features": x, "logits": y}
 
 
@@ -117,10 +103,9 @@ class DistillationModel(nn.Layer):
                         self.model_name_list[idx], path=pretrained)
 
     def forward(self, x, label=None):
-        result_dict = dict()
-        for idx, model_name in enumerate(self.model_name_list):
-            if label is None:
-                result_dict[model_name] = self.model_list[idx](x)
-            else:
-                result_dict[model_name] = self.model_list[idx](x, label)
-        return result_dict
+        return {
+            model_name: self.model_list[idx](x)
+            if label is None
+            else self.model_list[idx](x, label)
+            for idx, model_name in enumerate(self.model_name_list)
+        }

@@ -124,8 +124,9 @@ class VeriWild(Dataset):
             img = img.transpose((2, 0, 1))
             return (img, self.labels[idx], self.cameras[idx])
         except Exception as ex:
-            logger.error("Exception occured when parse line: {} with msg: {}".
-                         format(self.images[idx], ex))
+            logger.error(
+                f"Exception occured when parse line: {self.images[idx]} with msg: {ex}"
+            )
             rnd_idx = np.random.randint(self.__len__())
             return self.__getitem__(rnd_idx)
 

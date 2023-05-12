@@ -36,7 +36,7 @@ class UrlError(Exception):
     """
 
     def __init__(self, url='', code=''):
-        message = "Downloading from {} failed with code {}!".format(url, code)
+        message = f"Downloading from {url} failed with code {code}!"
         super(UrlError, self).__init__(message)
 
 
@@ -53,15 +53,13 @@ class RetryError(Exception):
     """
 
     def __init__(self, url='', times=''):
-        message = "Download from {} failed. Retry({}) limit reached".format(
-            url, times)
+        message = f"Download from {url} failed. Retry({times}) limit reached"
         super(RetryError, self).__init__(message)
 
 
 def _get_url(architecture, postfix="pdparams"):
-    prefix = "https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/"
-    fname = architecture + "_pretrained." + postfix
-    return prefix + fname
+    fname = f"{architecture}_pretrained.{postfix}"
+    return f"https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/{fname}"
 
 
 def _move_and_merge_tree(src, dst):
@@ -106,7 +104,7 @@ def _download(url, path):
         else:
             raise RetryError(url, DOWNLOAD_RETRY_LIMIT)
 
-        logger.info("Downloading {} from {}".format(fname, url))
+        logger.info(f"Downloading {fname} from {url}")
 
         req = requests.get(url, stream=True)
         if req.status_code != 200:
@@ -115,7 +113,7 @@ def _download(url, path):
         # For protecting download interupted, download to
         # tmp_fullname firstly, move tmp_fullname to fullname
         # after download finished
-        tmp_fullname = fullname + "_tmp"
+        tmp_fullname = f"{fullname}_tmp"
         total_size = req.headers.get('content-length')
         with open(tmp_fullname, 'wb') as f:
             if total_size:
@@ -137,7 +135,7 @@ def _decompress(fname):
     """
     Decompress for zip and tar file
     """
-    logger.info("Decompressing {}...".format(fname))
+    logger.info(f"Decompressing {fname}...")
 
     # For protecting decompressing interupted,
     # decompress to fpath_tmp directory firstly, if decompress
@@ -156,13 +154,12 @@ def _decompress(fname):
         with zipfile.ZipFile(fname) as zf:
             zf.extractall(path=fpath_tmp)
     else:
-        raise TypeError("Unsupport compress file type {}".format(fname))
+        raise TypeError(f"Unsupport compress file type {fname}")
 
     fs = os.listdir(fpath_tmp)
-    assert len(
-        fs
-    ) == 1, "There should just be 1 pretrained path in an archive file but got {}.".format(
-        len(fs))
+    assert (
+        len(fs) == 1
+    ), f"There should just be 1 pretrained path in an archive file but got {len(fs)}."
 
     f = fs[0]
     src_dir = os.path.join(fpath_tmp, f)
@@ -182,21 +179,20 @@ def _get_pretrained():
 
 
 def _check_pretrained_name(architecture):
-    assert isinstance(architecture, str), \
-        ("the type of architecture({}) should be str". format(architecture))
+    assert isinstance(
+        architecture, str
+    ), f"the type of architecture({architecture}) should be str"
     pretrained = _get_pretrained()
     similar_names = similar_architectures(architecture, pretrained)
     model_list = ', '.join(similar_names)
-    err = "{} is not exist! Maybe you want: [{}]" \
-          "".format(architecture, model_list)
+    err = f"{architecture} is not exist! Maybe you want: [{model_list}]"
     if architecture not in similar_names:
         raise ModelNameError(err)
 
 
 def list_models():
     pretrained = _get_pretrained()
-    msg = "All avialable pretrained models are as follows: {}".format(
-        pretrained)
+    msg = f"All avialable pretrained models are as follows: {pretrained}"
     logger.info(msg)
     return
 
@@ -210,4 +206,4 @@ def get(architecture, path, decompress=False, postfix="pdparams"):
     fname = _download(url, path)
     if postfix == "tar" and decompress:
         _decompress(fname)
-    logger.info("download {} finished ".format(fname))
+    logger.info(f"download {fname} finished ")

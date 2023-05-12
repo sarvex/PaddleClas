@@ -40,4 +40,4 @@ class DistanceLoss(nn.Layer):
 
     def forward(self, x, y):
         loss = self.loss_func(x, y)
-        return {"loss_{}".format(self.mode): loss}
+        return {f"loss_{self.mode}": loss}

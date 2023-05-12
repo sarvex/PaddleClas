@@ -95,16 +95,18 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=padding,
             groups=groups,
-            weight_attr=ParamAttr(name=name + ".conv2d.output.1.w_0"),
-            bias_attr=ParamAttr(name=name + ".conv2d.output.1.b_0"))
-        bn_name = name + "_bn"
+            weight_attr=ParamAttr(name=f"{name}.conv2d.output.1.w_0"),
+            bias_attr=ParamAttr(name=f"{name}.conv2d.output.1.b_0"),
+        )
+        bn_name = f"{name}_bn"
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=bn_name + ".output.1.w_0"),
-            bias_attr=ParamAttr(bn_name + ".output.1.b_0"),
-            moving_mean_name=bn_name + "_mean",
-            moving_variance_name=bn_name + "_variance")
+            param_attr=ParamAttr(name=f"{bn_name}.output.1.w_0"),
+            bias_attr=ParamAttr(f"{bn_name}.output.1.b_0"),
+            moving_mean_name=f"{bn_name}_mean",
+            moving_variance_name=f"{bn_name}_variance",
+        )
 
     def forward(self, inputs):
         y = self._conv(inputs)
@@ -136,7 +138,8 @@ class BottleneckBlock(nn.Layer):
             filter_size=1,
             padding=0,
             act="relu",
-            name=name + "_branch2a")
+            name=f"{name}_branch2a",
+        )
         self.conv1 = ConvBNLayer(
             num_channels=w_b,
             num_filters=w_b,
@@ -145,20 +148,23 @@ class BottleneckBlock(nn.Layer):
             padding=1,
             groups=num_gs,
             act="relu",
-            name=name + "_branch2b")
+            name=f"{name}_branch2b",
+        )
         if se_on:
             w_se = int(round(num_channels * se_r))
             self.se_block = SELayer(
                 num_channels=w_b,
                 num_filters=w_b,
                 reduction_ratio=w_se,
-                name=name + "_branch2se")
+                name=f"{name}_branch2se",
+            )
         self.conv2 = ConvBNLayer(
             num_channels=w_b,
             num_filters=num_filters,
             filter_size=1,
             act=None,
-            name=name + "_branch2c")
+            name=f"{name}_branch2c",
+        )
 
         if not shortcut:
             self.short = ConvBNLayer(
@@ -166,7 +172,8 @@ class BottleneckBlock(nn.Layer):
                 num_filters=num_filters,
                 filter_size=1,
                 stride=stride,
-                name=name + "_branch1")
+                name=f"{name}_branch1",
+            )
 
         self.shortcut = shortcut
 
@@ -177,11 +184,7 @@ class BottleneckBlock(nn.Layer):
             conv1 = self.se_block(conv1)
         conv2 = self.conv2(conv1)
 
-        if self.shortcut:
-            short = inputs
-        else:
-            short = self.short(inputs)
-
+        short = inputs if self.shortcut else self.short(inputs)
         y = paddle.add(x=short, y=conv2)
         y = F.relu(y)
         return y
@@ -201,16 +204,20 @@ class SELayer(nn.Layer):
             num_channels,
             med_ch,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_sqz_weights"),
-            bias_attr=ParamAttr(name=name + "_sqz_offset"))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_sqz_weights"
+            ),
+            bias_attr=ParamAttr(name=f"{name}_sqz_offset"),
+        )
 
         stdv = 1.0 / math.sqrt(med_ch * 1.0)
         self.excitation = Linear(
             med_ch,
             num_filters,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_exc_weights"),
-            bias_attr=ParamAttr(name=name + "_exc_offset"))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_exc_weights"
+            ),
+            bias_attr=ParamAttr(name=f"{name}_exc_offset"),
+        )
 
     def forward(self, input):
         pool = self.pool2d_gap(input)
@@ -221,8 +228,7 @@ class SELayer(nn.Layer):
         excitation = F.sigmoid(excitation)
         excitation = paddle.reshape(
             excitation, shape=[-1, self._num_channels, 1, 1])
-        out = input * excitation
-        return out
+        return input * excitation
 
 
 class RegNet(nn.Layer):
@@ -275,8 +281,7 @@ class RegNet(nn.Layer):
                 num_channels = stem_w if block == i == 0 else in_channels
                 # Stride apply to the first block of the stage
                 b_stride = stride if i == 0 else 1
-                conv_name = "s" + str(block + 1) + "_b" + str(i +
-                                                              1)  # chr(97 + i)
+                conv_name = f"s{str(block + 1)}_b{str(i + 1)}"
                 bottleneck_block = self.add_sublayer(
                     conv_name,
                     BottleneckBlock(

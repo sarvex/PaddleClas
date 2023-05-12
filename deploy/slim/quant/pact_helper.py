@@ -16,8 +16,8 @@ import paddle
 
 
 def get_default_quant_config():
-    quant_config = {
-        # weight preprocess type, default is None and no preprocessing is performed. 
+    return {
+        # weight preprocess type, default is None and no preprocessing is performed.
         'weight_preprocess_type': None,
         # activation preprocess type, default is None and no preprocessing is performed.
         'activation_preprocess_type': None,
@@ -38,4 +38,3 @@ def get_default_quant_config():
         # for dygraph quantization, layers of type in quantizable_layer_type will be quantized
         'quantizable_layer_type': ['Conv2D', 'Linear'],
     }
-    return quant_config

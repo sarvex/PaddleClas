@@ -62,17 +62,17 @@ def check_architecture(architecture):
     """
     check architecture and recommend similar architectures
     """
-    assert isinstance(architecture, dict), \
-        ("the type of architecture({}) should be dict". format(architecture))
-    assert "name" in architecture, \
-        ("name must be in the architecture keys, just contains: {}". format(
-            architecture.keys()))
+    assert isinstance(
+        architecture, dict
+    ), f"the type of architecture({architecture}) should be dict"
+    assert (
+        "name" in architecture
+    ), f"name must be in the architecture keys, just contains: {architecture.keys()}"
 
     similar_names = similar_architectures(architecture["name"],
                                           get_architectures())
     model_list = ', '.join(similar_names)
-    err = "Architecture [{}] is not exist! Maybe you want: [{}]" \
-          "".format(architecture["name"], model_list)
+    err = f'Architecture [{architecture["name"]}] is not exist! Maybe you want: [{model_list}]'
     try:
         assert architecture["name"] in similar_names
     except AssertionError:
@@ -87,8 +87,9 @@ def check_model_with_running_mode(architecture):
     # some model are not supported in the static mode
     blacklist = get_blacklist_model_in_static_mode()
     if not paddle.in_dynamic_mode() and architecture["name"] in blacklist:
-        logger.error("Model: {} is not supported in the staic mode.".format(
-            architecture["name"]))
+        logger.error(
+            f'Model: {architecture["name"]} is not supported in the staic mode.'
+        )
         sys.exit(1)
     return
 
@@ -111,8 +112,7 @@ def check_classes_num(classes_num):
     """
     check classes_num
     """
-    err = "classes_num({}) should be a positive integer" \
-        "and larger than 1".format(classes_num)
+    err = f"classes_num({classes_num}) should be a positive integerand larger than 1"
     try:
         assert isinstance(classes_num, int)
         assert classes_num > 1
@@ -139,13 +139,9 @@ def check_function_params(config, key):
     check specify config
     """
     k_config = config.get(key)
-    assert k_config is not None, \
-        ('{} is required in config'.format(key))
+    assert k_config is not None, f'{key} is required in config'
 
-    assert k_config.get('function'), \
-        ('function is required {} config'.format(key))
+    assert k_config.get('function'), f'function is required {key} config'
     params = k_config.get('params')
-    assert params is not None, \
-        ('params is required in {} config'.format(key))
-    assert isinstance(params, dict), \
-        ('the params in {} config should be a dict'.format(key))
+    assert params is not None, f'params is required in {key} config'
+    assert isinstance(params, dict), f'the params in {key} config should be a dict'

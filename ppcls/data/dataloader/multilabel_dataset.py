@@ -52,7 +52,8 @@ class MultiLabelDataset(CommonDataset):
             label = np.array(self.labels[idx]).astype("float32")
             return (img, label)
         except Exception as ex:
-            logger.error("Exception occured when parse line: {} with msg: {}".
-                         format(self.images[idx], ex))
+            logger.error(
+                f"Exception occured when parse line: {self.images[idx]} with msg: {ex}"
+            )
             rnd_idx = np.random.randint(self.__len__())
             return self.__getitem__(rnd_idx)

@@ -62,19 +62,18 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=(filter_size - 1) // 2,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
-        if name == "conv1":
-            bn_name = "bn_" + name
-        else:
-            bn_name = "bn" + name[3:]
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
+        bn_name = f"bn_{name}" if name == "conv1" else f"bn{name[3:]}"
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=bn_name + '_scale'),
-            bias_attr=ParamAttr(bn_name + '_offset'),
-            moving_mean_name=bn_name + '_mean',
-            moving_variance_name=bn_name + '_variance')
+            param_attr=ParamAttr(name=f'{bn_name}_scale'),
+            bias_attr=ParamAttr(f'{bn_name}_offset'),
+            moving_mean_name=f'{bn_name}_mean',
+            moving_variance_name=f'{bn_name}_variance',
+        )
 
     def forward(self, inputs):
         if self.is_vd_mode:
@@ -100,25 +99,29 @@ class BottleneckBlock(nn.Layer):
             num_filters=num_filters,
             filter_size=1,
             act='relu',
-            name=name + "_branch2a")
+            name=f"{name}_branch2a",
+        )
         self.conv1 = ConvBNLayer(
             num_channels=num_filters,
             num_filters=num_filters,
             filter_size=3,
             stride=stride,
             act='relu',
-            name=name + "_branch2b")
+            name=f"{name}_branch2b",
+        )
         self.conv2 = ConvBNLayer(
             num_channels=num_filters,
             num_filters=num_filters * 4,
             filter_size=1,
             act=None,
-            name=name + "_branch2c")
+            name=f"{name}_branch2c",
+        )
         self.scale = SELayer(
             num_channels=num_filters * 4,
             num_filters=num_filters * 4,
             reduction_ratio=reduction_ratio,
-            name='fc_' + name)
+            name=f'fc_{name}',
+        )
 
         if not shortcut:
             self.short = ConvBNLayer(
@@ -126,8 +129,9 @@ class BottleneckBlock(nn.Layer):
                 num_filters=num_filters * 4,
                 filter_size=1,
                 stride=1,
-                is_vd_mode=False if if_first else True,
-                name=name + "_branch1")
+                is_vd_mode=not if_first,
+                name=f"{name}_branch1",
+            )
 
         self.shortcut = shortcut
 
@@ -137,10 +141,7 @@ class BottleneckBlock(nn.Layer):
         conv2 = self.conv2(conv1)
         scale = self.scale(conv2)
 
-        if self.shortcut:
-            short = inputs
-        else:
-            short = self.short(inputs)
+        short = inputs if self.shortcut else self.short(inputs)
         y = paddle.add(x=short, y=scale)
         y = F.relu(y)
         return y
@@ -163,19 +164,22 @@ class BasicBlock(nn.Layer):
             filter_size=3,
             stride=stride,
             act='relu',
-            name=name + "_branch2a")
+            name=f"{name}_branch2a",
+        )
         self.conv1 = ConvBNLayer(
             num_channels=num_filters,
             num_filters=num_filters,
             filter_size=3,
             act=None,
-            name=name + "_branch2b")
+            name=f"{name}_branch2b",
+        )
 
         self.scale = SELayer(
             num_channels=num_filters,
             num_filters=num_filters,
             reduction_ratio=reduction_ratio,
-            name='fc_' + name)
+            name=f'fc_{name}',
+        )
 
         if not shortcut:
             self.short = ConvBNLayer(
@@ -183,8 +187,9 @@ class BasicBlock(nn.Layer):
                 num_filters=num_filters,
                 filter_size=1,
                 stride=1,
-                is_vd_mode=False if if_first else True,
-                name=name + "_branch1")
+                is_vd_mode=not if_first,
+                name=f"{name}_branch1",
+            )
 
         self.shortcut = shortcut
 
@@ -193,10 +198,7 @@ class BasicBlock(nn.Layer):
         conv1 = self.conv1(y)
         scale = self.scale(conv1)
 
-        if self.shortcut:
-            short = inputs
-        else:
-            short = self.short(inputs)
+        short = inputs if self.shortcut else self.short(inputs)
         y = paddle.add(x=short, y=scale)
         y = F.relu(y)
         return y
@@ -216,16 +218,20 @@ class SELayer(nn.Layer):
             num_channels,
             med_ch,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_sqz_weights"),
-            bias_attr=ParamAttr(name=name + '_sqz_offset'))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_sqz_weights"
+            ),
+            bias_attr=ParamAttr(name=f'{name}_sqz_offset'),
+        )
 
         stdv = 1.0 / math.sqrt(med_ch * 1.0)
         self.excitation = Linear(
             med_ch,
             num_filters,
             weight_attr=ParamAttr(
-                initializer=Uniform(-stdv, stdv), name=name + "_exc_weights"),
-            bias_attr=ParamAttr(name=name + '_exc_offset'))
+                initializer=Uniform(-stdv, stdv), name=f"{name}_exc_weights"
+            ),
+            bias_attr=ParamAttr(name=f'{name}_exc_offset'),
+        )
 
     def forward(self, input):
         pool = self.pool2d_gap(input)
@@ -235,8 +241,7 @@ class SELayer(nn.Layer):
         excitation = self.excitation(squeeze)
         excitation = F.sigmoid(excitation)
         excitation = paddle.unsqueeze(excitation, axis=[2, 3])
-        out = input * excitation
-        return out
+        return input * excitation
 
 
 class SE_ResNet_vd(nn.Layer):
@@ -245,13 +250,13 @@ class SE_ResNet_vd(nn.Layer):
 
         self.layers = layers
         supported_layers = [18, 34, 50, 101, 152, 200]
-        assert layers in supported_layers, \
-            "supported layers are {} but input layer is {}".format(
-                supported_layers, layers)
+        assert (
+            layers in supported_layers
+        ), f"supported layers are {supported_layers} but input layer is {layers}"
 
         if layers == 18:
             depth = [2, 2, 2, 2]
-        elif layers == 34 or layers == 50:
+        elif layers in [34, 50]:
             depth = [3, 4, 6, 3]
         elif layers == 101:
             depth = [3, 4, 23, 3]
@@ -293,11 +298,11 @@ class SE_ResNet_vd(nn.Layer):
                 for i in range(depth[block]):
                     if layers in [101, 152] and block == 2:
                         if i == 0:
-                            conv_name = "res" + str(block + 2) + "a"
+                            conv_name = f"res{str(block + 2)}a"
                         else:
-                            conv_name = "res" + str(block + 2) + "b" + str(i)
+                            conv_name = f"res{str(block + 2)}b{str(i)}"
                     else:
-                        conv_name = "res" + str(block + 2) + chr(97 + i)
+                        conv_name = f"res{str(block + 2)}{chr(97 + i)}"
                     bottleneck_block = self.add_sublayer(
                         'bb_%d_%d' % (block, i),
                         BottleneckBlock(
@@ -314,7 +319,7 @@ class SE_ResNet_vd(nn.Layer):
             for block in range(len(depth)):
                 shortcut = False
                 for i in range(depth[block]):
-                    conv_name = "res" + str(block + 2) + chr(97 + i)
+                    conv_name = f"res{str(block + 2)}{chr(97 + i)}"
                     basic_block = self.add_sublayer(
                         'bb_%d_%d' % (block, i),
                         BasicBlock(

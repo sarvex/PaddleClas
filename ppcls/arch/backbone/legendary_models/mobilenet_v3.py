@@ -116,8 +116,7 @@ def _create_act(act):
     elif act is None:
         return None
     else:
-        raise RuntimeError(
-            "The activation function is not supported: {}".format(act))
+        raise RuntimeError(f"The activation function is not supported: {act}")
 
 
 class MobileNetV3(TheseusLayer):

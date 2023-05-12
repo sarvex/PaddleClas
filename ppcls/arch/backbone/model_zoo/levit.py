@@ -256,18 +256,13 @@ class AttentionSubsample(nn.Layer):
         N_ = len(points_)
         attention_offsets = {}
         idxs = []
-        i = 0
-        j = 0
-        for p1 in points_:
-            i += 1
-            for p2 in points:
-                j += 1
-                size = 1
-                offset = (abs(p1[0] * stride - p2[0] + (size - 1) / 2),
-                          abs(p1[1] * stride - p2[1] + (size - 1) / 2))
-                if offset not in attention_offsets:
-                    attention_offsets[offset] = len(attention_offsets)
-                idxs.append(attention_offsets[offset])
+        size = 1
+        for p1, p2 in itertools.product(points_, points):
+            offset = (abs(p1[0] * stride - p2[0] + (size - 1) / 2),
+                      abs(p1[1] * stride - p2[1] + (size - 1) / 2))
+            if offset not in attention_offsets:
+                attention_offsets[offset] = len(attention_offsets)
+            idxs.append(attention_offsets[offset])
         self.attention_biases = self.create_parameter(
             shape=(num_heads, len(attention_offsets)),
             default_initializer=zeros_,
@@ -428,7 +423,7 @@ def model_factory(C, D, X, N, drop_path, class_dim, distillation):
     num_heads = [int(x) for x in N.split('_')]
     depth = [int(x) for x in X.split('_')]
     act = nn.Hardswish
-    model = LeViT(
+    return LeViT(
         patch_size=16,
         embed_dim=embed_dim,
         num_heads=num_heads,
@@ -437,7 +432,7 @@ def model_factory(C, D, X, N, drop_path, class_dim, distillation):
         attn_ratio=[2, 2, 2],
         mlp_ratio=[2, 2, 2],
         down_ops=[
-            #('Subsample',key_dim, num_heads, attn_ratio, mlp_ratio, stride)
+            # ('Subsample',key_dim, num_heads, attn_ratio, mlp_ratio, stride)
             ['Subsample', D, embed_dim[0] // D, 4, 2, 2],
             ['Subsample', D, embed_dim[1] // D, 4, 2, 2],
         ],
@@ -446,9 +441,8 @@ def model_factory(C, D, X, N, drop_path, class_dim, distillation):
         hybrid_backbone=b16(embed_dim[0], activation=act),
         class_dim=class_dim,
         drop_path=drop_path,
-        distillation=distillation)
-
-    return model
+        distillation=distillation,
+    )
 
 
 specification = {

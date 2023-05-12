@@ -175,20 +175,20 @@ def args_cfg():
     ]
     for name, opt_type, default, description in other_options:
         parser.add_argument(
-            "--" + name, type=opt_type, default=default, help=description)
+            f"--{name}", type=opt_type, default=default, help=description
+        )
 
     args = parser.parse_args()
 
     for name, opt_type, default, description in other_options:
-        val = eval("args." + name)
-        full_name = "Global." + name
+        val = eval(f"args.{name}")
+        full_name = f"Global.{name}"
         args.override.append(
             f"{full_name}={val}") if val is not default else None
 
-    cfg = config.get_config(
-        args.config, overrides=args.override, show=args.verbose)
-
-    return cfg
+    return config.get_config(
+        args.config, overrides=args.override, show=args.verbose
+    )
 
 
 def get_default_confg():
@@ -244,11 +244,11 @@ def print_info():
         names = textwrap.fill("  ".join(MODEL_SERIES[series]), width=width)
         table.add_row([series, names])
     width = len(str(table).split("\n")[0])
-    print("{}".format("-" * width))
+    print(f'{"-" * width}')
     print("Models supported by PaddleClas".center(width))
     print(table)
     print("Powered by PaddlePaddle!".rjust(width))
-    print("{}".format("-" * width))
+    print(f'{"-" * width}')
 
 
 def get_model_names():
@@ -271,8 +271,7 @@ def similar_architectures(name="", names=[], thresh=0.1, topk=10):
         if score > thresh:
             scores.append((idx, score))
     scores.sort(key=lambda x: x[1], reverse=True)
-    similar_names = [names[s[0]] for s in scores[:min(topk, len(scores))]]
-    return similar_names
+    return [names[s[0]] for s in scores[:min(topk, len(scores))]]
 
 
 def download_with_progressbar(url, save_path):
@@ -427,7 +426,7 @@ class PaddleClas(object):
                 raise InputModelError(err)
             return
         else:
-            err = f"Please specify the model name supported by PaddleClas or directory contained model file and params file."
+            err = "Please specify the model name supported by PaddleClas or directory contained model file and params file."
             raise InputModelError(err)
         return
 
@@ -487,8 +486,7 @@ class PaddleClas(object):
                                 f"filename: {img_path_list[nu]}",
                                 f"top-{self._config.PostProcess.get('topk', 1)}"
                             ]
-                            for k in pred:
-                                pred_str_list.append(f"{k}: {pred[k]}")
+                            pred_str_list.extend(f"{k}: {pred[k]}" for k in pred)
                             print(", ".join(pred_str_list))
                     img_list = []
                     img_path_list = []

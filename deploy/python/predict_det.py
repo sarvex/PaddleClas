@@ -55,8 +55,7 @@ class DetPredictor(Predictor):
                 [1., 1.], dtype=np.float32)
         }
         im, im_info = det_preprocess(img, im_info, self.preprocess_ops)
-        inputs = self.create_inputs(im, im_info)
-        return inputs
+        return self.create_inputs(im, im_info)
 
     def create_inputs(self, im, im_info):
         """generate input for different model type
@@ -67,8 +66,7 @@ class DetPredictor(Predictor):
         Returns:
             inputs (dict): input of model
         """
-        inputs = {}
-        inputs['image'] = np.array((im, )).astype('float32')
+        inputs = {'image': np.array((im, )).astype('float32')}
         inputs['im_shape'] = np.array(
             (im_info['im_shape'], )).astype('float32')
         inputs['scale_factor'] = np.array(
@@ -123,7 +121,7 @@ class DetPredictor(Predictor):
         np_boxes = boxes_tensor.copy_to_cpu()
         t2 = time.time()
 
-        print("Inference: {} ms per batch image".format((t2 - t1) * 1000.0))
+        print(f"Inference: {(t2 - t1) * 1000.0} ms per batch image")
 
         # do not perform postprocess in benchmark mode
         results = []
@@ -144,7 +142,7 @@ def main(config):
     image_list = get_image_list(config["Global"]["infer_imgs"])
 
     assert config["Global"]["batch_size"] == 1
-    for idx, image_file in enumerate(image_list):
+    for image_file in image_list:
         img = cv2.imread(image_file)[:, :, ::-1]
         output = det_predictor.predict(img)
         print(output)

@@ -68,18 +68,16 @@ def print_dict(d, delimiter=0):
     placeholder = "-" * 60
     for k, v in sorted(d.items()):
         if isinstance(v, dict):
-            logger.info("{}{} : ".format(delimiter * " ",
-                                         logger.coloring(k, "HEADER")))
+            logger.info(f'{delimiter * " "}{logger.coloring(k, "HEADER")} : ')
             print_dict(v, delimiter + 4)
         elif isinstance(v, list) and len(v) >= 1 and isinstance(v[0], dict):
-            logger.info("{}{} : ".format(delimiter * " ",
-                                         logger.coloring(str(k), "HEADER")))
+            logger.info(f'{delimiter * " "}{logger.coloring(str(k), "HEADER")} : ')
             for value in v:
                 print_dict(value, delimiter + 4)
         else:
-            logger.info("{}{} : {}".format(delimiter * " ",
-                                           logger.coloring(k, "HEADER"),
-                                           logger.coloring(v, "OKGREEN")))
+            logger.info(
+                f'{delimiter * " "}{logger.coloring(k, "HEADER")} : {logger.coloring(v, "OKGREEN")}'
+            )
         if k.isupper():
             logger.info(placeholder)
 
@@ -121,7 +119,7 @@ def override(dl, ks, v):
     else:
         if len(ks) == 1:
             # assert ks[0] in dl, ('{} is not exist in {}'.format(ks[0], dl))
-            if not ks[0] in dl:
+            if ks[0] not in dl:
                 logger.warning('A new filed ({}) detected!'.format(ks[0], dl))
             dl[ks[0]] = str2num(v)
         else:
@@ -143,11 +141,10 @@ def override_config(config, options=None):
     """
     if options is not None:
         for opt in options:
-            assert isinstance(opt, str), (
-                "option({}) should be a str".format(opt))
-            assert "=" in opt, (
-                "option({}) should contain a ="
-                "to distinguish between key and value".format(opt))
+            assert isinstance(opt, str), f"option({opt}) should be a str"
+            assert (
+                "=" in opt
+            ), f"option({opt}) should contain a =to distinguish between key and value"
             pair = opt.split('=')
             assert len(pair) == 2, ("there can be only a = in the option")
             key, value = pair
@@ -160,8 +157,7 @@ def get_config(fname, overrides=None, show=True):
     """
     Read config from file
     """
-    assert os.path.exists(fname), (
-        'config file({}) is not exist'.format(fname))
+    assert os.path.exists(fname), f'config file({fname}) is not exist'
     config = parse_config(fname)
     override_config(config, overrides)
     if show:
@@ -193,5 +189,4 @@ def parser():
 
 
 def parse_args():
-    args = parser().parse_args()
-    return args
+    return parser().parse_args()

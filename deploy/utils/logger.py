@@ -109,12 +109,17 @@ def advertise():
     AD_LEN = 6 + len(max([copyright, ad, website], key=len))
 
     info(
-        coloring("\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n".format(
-            "=" * (AD_LEN + 4),
-            "=={}==".format(copyright.center(AD_LEN)),
-            "=" * (AD_LEN + 4),
-            "=={}==".format(' ' * AD_LEN),
-            "=={}==".format(ad.center(AD_LEN)),
-            "=={}==".format(' ' * AD_LEN),
-            "=={}==".format(website.center(AD_LEN)),
-            "=" * (AD_LEN + 4), ), "RED"))
+        coloring(
+            "\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}\n".format(
+                "=" * (AD_LEN + 4),
+                f"=={copyright.center(AD_LEN)}==",
+                "=" * (AD_LEN + 4),
+                f"=={' ' * AD_LEN}==",
+                f"=={ad.center(AD_LEN)}==",
+                f"=={' ' * AD_LEN}==",
+                f"=={website.center(AD_LEN)}==",
+                "=" * (AD_LEN + 4),
+            ),
+            "RED",
+        )
+    )

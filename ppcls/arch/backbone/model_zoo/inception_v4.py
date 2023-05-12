@@ -47,16 +47,18 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=padding,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
-        bn_name = name + "_bn"
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
+        bn_name = f"{name}_bn"
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=bn_name + "_scale"),
-            bias_attr=ParamAttr(name=bn_name + "_offset"),
-            moving_mean_name=bn_name + '_mean',
-            moving_variance_name=bn_name + '_variance')
+            param_attr=ParamAttr(name=f"{bn_name}_scale"),
+            bias_attr=ParamAttr(name=f"{bn_name}_offset"),
+            moving_mean_name=f'{bn_name}_mean',
+            moving_variance_name=f'{bn_name}_variance',
+        )
 
     def forward(self, inputs):
         y = self._conv(inputs)
@@ -129,38 +131,26 @@ class InceptionA(nn.Layer):
         super(InceptionA, self).__init__()
         self._pool = AvgPool2D(kernel_size=3, stride=1, padding=1)
         self._conv1 = ConvBNLayer(
-            384, 96, 1, act="relu", name="inception_a" + name + "_1x1")
+            384, 96, 1, act="relu", name=f"inception_a{name}_1x1"
+        )
         self._conv2 = ConvBNLayer(
-            384, 96, 1, act="relu", name="inception_a" + name + "_1x1_2")
+            384, 96, 1, act="relu", name=f"inception_a{name}_1x1_2"
+        )
         self._conv3_1 = ConvBNLayer(
-            384, 64, 1, act="relu", name="inception_a" + name + "_3x3_reduce")
+            384, 64, 1, act="relu", name=f"inception_a{name}_3x3_reduce"
+        )
         self._conv3_2 = ConvBNLayer(
-            64,
-            96,
-            3,
-            padding=1,
-            act="relu",
-            name="inception_a" + name + "_3x3")
+            64, 96, 3, padding=1, act="relu", name=f"inception_a{name}_3x3"
+        )
         self._conv4_1 = ConvBNLayer(
-            384,
-            64,
-            1,
-            act="relu",
-            name="inception_a" + name + "_3x3_2_reduce")
+            384, 64, 1, act="relu", name=f"inception_a{name}_3x3_2_reduce"
+        )
         self._conv4_2 = ConvBNLayer(
-            64,
-            96,
-            3,
-            padding=1,
-            act="relu",
-            name="inception_a" + name + "_3x3_2")
+            64, 96, 3, padding=1, act="relu", name=f"inception_a{name}_3x3_2"
+        )
         self._conv4_3 = ConvBNLayer(
-            96,
-            96,
-            3,
-            padding=1,
-            act="relu",
-            name="inception_a" + name + "_3x3_3")
+            96, 96, 3, padding=1, act="relu", name=f"inception_a{name}_3x3_3"
+        )
 
     def forward(self, inputs):
         pool1 = self._pool(inputs)
@@ -207,57 +197,65 @@ class InceptionB(nn.Layer):
         super(InceptionB, self).__init__()
         self._pool = AvgPool2D(kernel_size=3, stride=1, padding=1)
         self._conv1 = ConvBNLayer(
-            1024, 128, 1, act="relu", name="inception_b" + name + "_1x1")
+            1024, 128, 1, act="relu", name=f"inception_b{name}_1x1"
+        )
         self._conv2 = ConvBNLayer(
-            1024, 384, 1, act="relu", name="inception_b" + name + "_1x1_2")
+            1024, 384, 1, act="relu", name=f"inception_b{name}_1x1_2"
+        )
         self._conv3_1 = ConvBNLayer(
-            1024,
-            192,
-            1,
-            act="relu",
-            name="inception_b" + name + "_1x7_reduce")
+            1024, 192, 1, act="relu", name=f"inception_b{name}_1x7_reduce"
+        )
         self._conv3_2 = ConvBNLayer(
             192,
-            224, (1, 7),
+            224,
+            (1, 7),
             padding=(0, 3),
             act="relu",
-            name="inception_b" + name + "_1x7")
+            name=f"inception_b{name}_1x7",
+        )
         self._conv3_3 = ConvBNLayer(
             224,
-            256, (7, 1),
+            256,
+            (7, 1),
             padding=(3, 0),
             act="relu",
-            name="inception_b" + name + "_7x1")
+            name=f"inception_b{name}_7x1",
+        )
         self._conv4_1 = ConvBNLayer(
-            1024,
-            192,
-            1,
-            act="relu",
-            name="inception_b" + name + "_7x1_2_reduce")
+            1024, 192, 1, act="relu", name=f"inception_b{name}_7x1_2_reduce"
+        )
         self._conv4_2 = ConvBNLayer(
             192,
-            192, (1, 7),
+            192,
+            (1, 7),
             padding=(0, 3),
             act="relu",
-            name="inception_b" + name + "_1x7_2")
+            name=f"inception_b{name}_1x7_2",
+        )
         self._conv4_3 = ConvBNLayer(
             192,
-            224, (7, 1),
+            224,
+            (7, 1),
             padding=(3, 0),
             act="relu",
-            name="inception_b" + name + "_7x1_2")
+            name=f"inception_b{name}_7x1_2",
+        )
         self._conv4_4 = ConvBNLayer(
             224,
-            224, (1, 7),
+            224,
+            (1, 7),
             padding=(0, 3),
             act="relu",
-            name="inception_b" + name + "_1x7_3")
+            name=f"inception_b{name}_1x7_3",
+        )
         self._conv4_5 = ConvBNLayer(
             224,
-            256, (7, 1),
+            256,
+            (7, 1),
             padding=(3, 0),
             act="relu",
-            name="inception_b" + name + "_7x1_3")
+            name=f"inception_b{name}_7x1_3",
+        )
 
     def forward(self, inputs):
         pool1 = self._pool(inputs)
@@ -325,49 +323,65 @@ class InceptionC(nn.Layer):
         super(InceptionC, self).__init__()
         self._pool = AvgPool2D(kernel_size=3, stride=1, padding=1)
         self._conv1 = ConvBNLayer(
-            1536, 256, 1, act="relu", name="inception_c" + name + "_1x1")
+            1536, 256, 1, act="relu", name=f"inception_c{name}_1x1"
+        )
         self._conv2 = ConvBNLayer(
-            1536, 256, 1, act="relu", name="inception_c" + name + "_1x1_2")
+            1536, 256, 1, act="relu", name=f"inception_c{name}_1x1_2"
+        )
         self._conv3_0 = ConvBNLayer(
-            1536, 384, 1, act="relu", name="inception_c" + name + "_1x1_3")
+            1536, 384, 1, act="relu", name=f"inception_c{name}_1x1_3"
+        )
         self._conv3_1 = ConvBNLayer(
             384,
-            256, (1, 3),
+            256,
+            (1, 3),
             padding=(0, 1),
             act="relu",
-            name="inception_c" + name + "_1x3")
+            name=f"inception_c{name}_1x3",
+        )
         self._conv3_2 = ConvBNLayer(
             384,
-            256, (3, 1),
+            256,
+            (3, 1),
             padding=(1, 0),
             act="relu",
-            name="inception_c" + name + "_3x1")
+            name=f"inception_c{name}_3x1",
+        )
         self._conv4_0 = ConvBNLayer(
-            1536, 384, 1, act="relu", name="inception_c" + name + "_1x1_4")
+            1536, 384, 1, act="relu", name=f"inception_c{name}_1x1_4"
+        )
         self._conv4_00 = ConvBNLayer(
             384,
-            448, (1, 3),
+            448,
+            (1, 3),
             padding=(0, 1),
             act="relu",
-            name="inception_c" + name + "_1x3_2")
+            name=f"inception_c{name}_1x3_2",
+        )
         self._conv4_000 = ConvBNLayer(
             448,
-            512, (3, 1),
+            512,
+            (3, 1),
             padding=(1, 0),
             act="relu",
-            name="inception_c" + name + "_3x1_2")
+            name=f"inception_c{name}_3x1_2",
+        )
         self._conv4_1 = ConvBNLayer(
             512,
-            256, (1, 3),
+            256,
+            (1, 3),
             padding=(0, 1),
             act="relu",
-            name="inception_c" + name + "_1x3_3")
+            name=f"inception_c{name}_1x3_3",
+        )
         self._conv4_2 = ConvBNLayer(
             512,
-            256, (3, 1),
+            256,
+            (3, 1),
             padding=(1, 0),
             act="relu",
-            name="inception_c" + name + "_3x1_3")
+            name=f"inception_c{name}_3x1_3",
+        )
 
     def forward(self, inputs):
         pool1 = self._pool(inputs)

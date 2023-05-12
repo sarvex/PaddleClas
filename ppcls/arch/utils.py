@@ -23,18 +23,17 @@ def get_architectures():
     """
     get all of model architectures
     """
-    names = []
-    for k, v in backbone.__dict__.items():
-        if isinstance(v, (types.FunctionType, six.class_types)):
-            names.append(k)
-    return names
+    return [
+        k
+        for k, v in backbone.__dict__.items()
+        if isinstance(v, (types.FunctionType, six.class_types))
+    ]
 
 
 def get_blacklist_model_in_static_mode():
     from ppcls.arch.backbone import distilled_vision_transformer
     from ppcls.arch.backbone import vision_transformer
-    blacklist = distilled_vision_transformer.__all__ + vision_transformer.__all__
-    return blacklist
+    return distilled_vision_transformer.__all__ + vision_transformer.__all__
 
 
 def similar_architectures(name='', names=[], thresh=0.1, topk=10):
@@ -49,5 +48,4 @@ def similar_architectures(name='', names=[], thresh=0.1, topk=10):
         if score > thresh:
             scores.append((idx, score))
     scores.sort(key=lambda x: x[1], reverse=True)
-    similar_names = [names[s[0]] for s in scores[:min(topk, len(scores))]]
-    return similar_names
+    return [names[s[0]] for s in scores[:min(topk, len(scores))]]

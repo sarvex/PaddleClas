@@ -41,7 +41,7 @@ def predict(image_path, server):
 
 
 if __name__ == "__main__":
-    server = "http://127.0.0.1:{}/image/prediction".format(sys.argv[1])
+    server = f"http://127.0.0.1:{sys.argv[1]}/image/prediction"
     image_file = sys.argv[2]
     res = predict(image_file, server)
     print("res:", res)

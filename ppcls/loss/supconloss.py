@@ -76,7 +76,7 @@ class SupConLoss(nn.Layer):
             anchor_feature = contrast_feature
             anchor_count = contrast_count
         else:
-            raise ValueError('Unknown mode: {}'.format(self.contrast_mode))
+            raise ValueError(f'Unknown mode: {self.contrast_mode}')
 
         # compute logits
         anchor_dot_contrast = paddle.divide(

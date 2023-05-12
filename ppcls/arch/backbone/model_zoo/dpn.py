@@ -58,15 +58,17 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=pad,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=name + '_bn_scale'),
-            bias_attr=ParamAttr(name + '_bn_offset'),
-            moving_mean_name=name + '_bn_mean',
-            moving_variance_name=name + '_bn_variance')
+            param_attr=ParamAttr(name=f'{name}_bn_scale'),
+            bias_attr=ParamAttr(f'{name}_bn_offset'),
+            moving_mean_name=f'{name}_bn_mean',
+            moving_variance_name=f'{name}_bn_variance',
+        )
 
     def forward(self, input):
         y = self._conv(input)
@@ -90,10 +92,11 @@ class BNACConvLayer(nn.Layer):
         self._batch_norm = BatchNorm(
             num_channels,
             act=act,
-            param_attr=ParamAttr(name=name + '_bn_scale'),
-            bias_attr=ParamAttr(name + '_bn_offset'),
-            moving_mean_name=name + '_bn_mean',
-            moving_variance_name=name + '_bn_variance')
+            param_attr=ParamAttr(name=f'{name}_bn_scale'),
+            bias_attr=ParamAttr(f'{name}_bn_offset'),
+            moving_mean_name=f'{name}_bn_mean',
+            moving_variance_name=f'{name}_bn_variance',
+        )
 
         self._conv = Conv2D(
             in_channels=num_channels,
@@ -102,8 +105,9 @@ class BNACConvLayer(nn.Layer):
             stride=stride,
             padding=pad,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
 
     def forward(self, input):
         y = self._batch_norm(input)
@@ -156,14 +160,16 @@ class DualPathFactory(nn.Layer):
                 filter_size=(1, 1),
                 pad=(0, 0),
                 stride=(key_stride, key_stride),
-                name=name + "_match")
+                name=f"{name}_match",
+            )
 
         self.c1x1_a_func = BNACConvLayer(
             num_channels=data_in_ch,
             num_filters=num_1x1_a,
             filter_size=(1, 1),
             pad=(0, 0),
-            name=name + "_conv1")
+            name=f"{name}_conv1",
+        )
 
         self.c3x3_b_func = BNACConvLayer(
             num_channels=num_1x1_a,
@@ -172,14 +178,16 @@ class DualPathFactory(nn.Layer):
             pad=(pw, ph),
             stride=(key_stride, key_stride),
             groups=G,
-            name=name + "_conv2")
+            name=f"{name}_conv2",
+        )
 
         self.c1x1_c_func = BNACConvLayer(
             num_channels=num_3x3_b,
             num_filters=num_1x1_c + inc,
             filter_size=(1, 1),
             pad=(0, 0),
-            name=name + "_conv3")
+            name=f"{name}_conv3",
+        )
 
     def forward(self, input):
         # PROJ
@@ -245,22 +253,21 @@ class DPN(nn.Layer):
         self.dpn_func_list = []
         #conv2 - conv5
         match_list, num = [], 0
+        _type2 = 'normal'
         for gc in range(4):
             bw = bws[gc]
             inc = inc_sec[gc]
             R = (k_r * bw) // rs[gc]
             if gc == 0:
                 _type1 = 'proj'
-                _type2 = 'normal'
                 match = 1
             else:
                 _type1 = 'down'
-                _type2 = 'normal'
                 match = match + k_sec[gc - 1]
             match_list.append(match)
             self.dpn_func_list.append(
                 self.add_sublayer(
-                    "dpn{}".format(match),
+                    f"dpn{match}",
                     DualPathFactory(
                         num_channels=num_channel_dpn,
                         num_1x1_a=R,
@@ -269,16 +276,19 @@ class DPN(nn.Layer):
                         inc=inc,
                         G=G,
                         _type=_type1,
-                        name="dpn" + str(match))))
+                        name=f"dpn{str(match)}",
+                    ),
+                )
+            )
             num_channel_dpn = [bw, 3 * inc]
 
-            for i_ly in range(2, k_sec[gc] + 1):
+            for _ in range(2, k_sec[gc] + 1):
                 num += 1
                 if num in match_list:
                     num += 1
                 self.dpn_func_list.append(
                     self.add_sublayer(
-                        "dpn{}".format(num),
+                        f"dpn{num}",
                         DualPathFactory(
                             num_channels=num_channel_dpn,
                             num_1x1_a=R,
@@ -287,7 +297,10 @@ class DPN(nn.Layer):
                             inc=inc,
                             G=G,
                             _type=_type2,
-                            name="dpn" + str(num))))
+                            name=f"dpn{num}",
+                        ),
+                    )
+                )
 
                 num_channel_dpn = [
                     num_channel_dpn[0], num_channel_dpn[1] + inc
@@ -322,7 +335,7 @@ class DPN(nn.Layer):
         for gc in range(4):
             convX_x_x = self.dpn_func_list[dpn_idx](convX_x_x)
             dpn_idx += 1
-            for i_ly in range(2, self.k_sec[gc] + 1):
+            for _ in range(2, self.k_sec[gc] + 1):
                 convX_x_x = self.dpn_func_list[dpn_idx](convX_x_x)
                 dpn_idx += 1
 
@@ -335,7 +348,27 @@ class DPN(nn.Layer):
         return y
 
     def get_net_args(self, layers):
-        if layers == 68:
+        if layers == 107:
+            k_r = 200
+            G = 50
+            k_sec = [4, 8, 20, 3]
+            inc_sec = [20, 64, 64, 128]
+            bw = [256, 512, 1024, 2048]
+            r = [256, 256, 256, 256]
+            init_num_filter = 128
+            init_filter_size = 7
+            init_padding = 3
+        elif layers == 131:
+            k_r = 160
+            G = 40
+            k_sec = [4, 8, 28, 3]
+            inc_sec = [16, 32, 32, 128]
+            bw = [256, 512, 1024, 2048]
+            r = [256, 256, 256, 256]
+            init_num_filter = 128
+            init_filter_size = 7
+            init_padding = 3
+        elif layers == 68:
             k_r = 128
             G = 32
             k_sec = [3, 4, 12, 3]
@@ -365,41 +398,19 @@ class DPN(nn.Layer):
             init_num_filter = 96
             init_filter_size = 7
             init_padding = 3
-        elif layers == 107:
-            k_r = 200
-            G = 50
-            k_sec = [4, 8, 20, 3]
-            inc_sec = [20, 64, 64, 128]
-            bw = [256, 512, 1024, 2048]
-            r = [256, 256, 256, 256]
-            init_num_filter = 128
-            init_filter_size = 7
-            init_padding = 3
-        elif layers == 131:
-            k_r = 160
-            G = 40
-            k_sec = [4, 8, 28, 3]
-            inc_sec = [16, 32, 32, 128]
-            bw = [256, 512, 1024, 2048]
-            r = [256, 256, 256, 256]
-            init_num_filter = 128
-            init_filter_size = 7
-            init_padding = 3
         else:
             raise NotImplementedError
-        net_arg = {
+        return {
             'k_r': k_r,
             'G': G,
             'k_sec': k_sec,
             'inc_sec': inc_sec,
             'bw': bw,
-            'r': r
+            'r': r,
+            'init_num_filter': init_num_filter,
+            'init_filter_size': init_filter_size,
+            'init_padding': init_padding,
         }
-        net_arg['init_num_filter'] = init_num_filter
-        net_arg['init_filter_size'] = init_filter_size
-        net_arg['init_padding'] = init_padding
-
-        return net_arg
     
 def _load_pretrained(pretrained, model, model_url, use_ssld=False):
     if pretrained is False:

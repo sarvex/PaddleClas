@@ -37,8 +37,7 @@ class _SysPathG(object):
 
     def __exit__(self, type, value, traceback):
         _p = sys.path.pop(0)
-        assert _p == self.path, 'Make sure sys.path cleaning {} correctly.'.format(
-            self.path)
+        assert _p == self.path, f'Make sure sys.path cleaning {self.path} correctly.'
 
 
 with _SysPathG(
@@ -47,8 +46,7 @@ with _SysPathG(
     import backbone
 
     def _load_pretrained_parameters(model, name):
-        url = 'https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/{}_pretrained.pdparams'.format(
-            name)
+        url = f'https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/{name}_pretrained.pdparams'
         path = paddle.utils.download.get_weights_path_from_url(url)
         model.set_state_dict(paddle.load(path))
         return model

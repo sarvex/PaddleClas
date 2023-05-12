@@ -68,7 +68,7 @@ def main(config):
     image_list = get_image_list(config["Global"]["infer_imgs"])
 
     assert config["Global"]["batch_size"] == 1
-    for idx, image_file in enumerate(image_list):
+    for image_file in image_list:
         batch_input = []
         img = cv2.imread(image_file)[:, :, ::-1]
         output = rec_predictor.predict(img)

@@ -60,19 +60,18 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=(filter_size - 1) // 2,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
-        if name == "conv1":
-            bn_name = "bn_" + name
-        else:
-            bn_name = "bn" + name[3:]
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
+        bn_name = f"bn_{name}" if name == "conv1" else f"bn{name[3:]}"
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=bn_name + '_scale'),
-            bias_attr=ParamAttr(bn_name + '_offset'),
-            moving_mean_name=bn_name + '_mean',
-            moving_variance_name=bn_name + '_variance')
+            param_attr=ParamAttr(name=f'{bn_name}_scale'),
+            bias_attr=ParamAttr(f'{bn_name}_offset'),
+            moving_mean_name=f'{bn_name}_mean',
+            moving_variance_name=f'{bn_name}_variance',
+        )
 
     def forward(self, inputs):
         if self.is_vd_mode:
@@ -100,18 +99,21 @@ class BottleneckBlock(nn.Layer):
             num_filters=num_filters,
             filter_size=1,
             act='relu',
-            name=name + "_branch2a")
+            name=f"{name}_branch2a",
+        )
         self.conv1_list = []
         for s in range(scales - 1):
             conv1 = self.add_sublayer(
-                name + '_branch2b_' + str(s + 1),
+                f'{name}_branch2b_{str(s + 1)}',
                 ConvBNLayer(
                     num_channels=num_filters // scales,
                     num_filters=num_filters // scales,
                     filter_size=3,
                     stride=stride,
                     act='relu',
-                    name=name + '_branch2b_' + str(s + 1)))
+                    name=f'{name}_branch2b_{str(s + 1)}',
+                ),
+            )
             self.conv1_list.append(conv1)
         self.pool2d_avg = AvgPool2D(kernel_size=3, stride=stride, padding=1)
 
@@ -120,7 +122,8 @@ class BottleneckBlock(nn.Layer):
             num_filters=num_channels2,
             filter_size=1,
             act=None,
-            name=name + "_branch2c")
+            name=f"{name}_branch2c",
+        )
 
         if not shortcut:
             self.short = ConvBNLayer(
@@ -128,8 +131,9 @@ class BottleneckBlock(nn.Layer):
                 num_filters=num_channels2,
                 filter_size=1,
                 stride=1,
-                is_vd_mode=False if if_first else True,
-                name=name + "_branch1")
+                is_vd_mode=not if_first,
+                name=f"{name}_branch1",
+            )
 
         self.shortcut = shortcut
 
@@ -149,10 +153,7 @@ class BottleneckBlock(nn.Layer):
         conv1 = paddle.concat(ys, axis=1)
         conv2 = self.conv2(conv1)
 
-        if self.shortcut:
-            short = inputs
-        else:
-            short = self.short(inputs)
+        short = inputs if self.shortcut else self.short(inputs)
         y = paddle.add(x=short, y=conv2)
         y = F.relu(y)
         return y
@@ -167,18 +168,18 @@ class Res2Net_vd(nn.Layer):
         self.width = width
         basic_width = self.width * self.scales
         supported_layers = [50, 101, 152, 200]
-        assert layers in supported_layers, \
-            "supported layers are {} but input layer is {}".format(
-                supported_layers, layers)
+        assert (
+            layers in supported_layers
+        ), f"supported layers are {supported_layers} but input layer is {layers}"
 
-        if layers == 50:
-            depth = [3, 4, 6, 3]
-        elif layers == 101:
+        if layers == 101:
             depth = [3, 4, 23, 3]
         elif layers == 152:
             depth = [3, 8, 36, 3]
         elif layers == 200:
             depth = [3, 12, 48, 3]
+        elif layers == 50:
+            depth = [3, 4, 6, 3]
         num_channels = [64, 256, 512, 1024]
         num_channels2 = [256, 512, 1024, 2048]
         num_filters = [basic_width * t for t in [1, 2, 4, 8]]
@@ -212,11 +213,11 @@ class Res2Net_vd(nn.Layer):
             for i in range(depth[block]):
                 if layers in [101, 152, 200] and block == 2:
                     if i == 0:
-                        conv_name = "res" + str(block + 2) + "a"
+                        conv_name = f"res{str(block + 2)}a"
                     else:
-                        conv_name = "res" + str(block + 2) + "b" + str(i)
+                        conv_name = f"res{str(block + 2)}b{str(i)}"
                 else:
-                    conv_name = "res" + str(block + 2) + chr(97 + i)
+                    conv_name = f"res{str(block + 2)}{chr(97 + i)}"
                 bottleneck_block = self.add_sublayer(
                     'bb_%d_%d' % (block, i),
                     BottleneckBlock(

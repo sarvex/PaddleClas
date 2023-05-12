@@ -113,12 +113,13 @@ def main(args):
 
                 for number, result_list in enumerate(preds):
                     all_score += result_list["scores"][0]
-                    result_str = ""
-                    for i in range(len(result_list["class_ids"])):
-                        result_str += "{}: {:.2f}\t".format(
+                    result_str = "".join(
+                        "{}: {:.2f}\t".format(
                             result_list["class_ids"][i],
-                            result_list["scores"][i])
-
+                            result_list["scores"][i],
+                        )
+                        for i in range(len(result_list["class_ids"]))
+                    )
                     logger.info(
                         f"File:{img_name_list[number]}, The result(s): {result_str}"
                     )

@@ -71,9 +71,9 @@ def window_partition(x, window_size):
     B, H, W, C = x.shape
     x = x.reshape(
         [B, H // window_size, window_size, W // window_size, window_size, C])
-    windows = x.transpose([0, 1, 3, 2, 4, 5]).reshape(
-        [-1, window_size, window_size, C])
-    return windows
+    return x.transpose([0, 1, 3, 2, 4, 5]).reshape(
+        [-1, window_size, window_size, C]
+    )
 
 
 def window_reverse(windows, window_size, H, W, C):
@@ -193,10 +193,7 @@ class WindowAttention(nn.Layer):
             attn = attn.reshape([B_ // nW, nW, self.num_heads, N, N
                                  ]) + mask.unsqueeze(1).unsqueeze(0)
             attn = attn.reshape([-1, self.num_heads, N, N])
-            attn = self.softmax(attn)
-        else:
-            attn = self.softmax(attn)
-
+        attn = self.softmax(attn)
         attn = self.attn_drop(attn)
 
         # x = (attn @ v).transpose(1, 2).reshape([B_, N, C])
@@ -206,8 +203,7 @@ class WindowAttention(nn.Layer):
         return x
 
     def extra_repr(self):
-        return "dim={}, window_size={}, num_heads={}".format(
-            self.dim, self.window_size, self.num_heads)
+        return f"dim={self.dim}, window_size={self.window_size}, num_heads={self.num_heads}"
 
     def flops(self, N):
         # calculate flops for 1 window with token length of N
@@ -366,9 +362,7 @@ class SwinTransformerBlock(nn.Layer):
         return x
 
     def extra_repr(self):
-        return "dim={}, input_resolution={}, num_heads={}, window_size={}, shift_size={}, mlp_ratio={}".format(
-            self.dim, self.input_resolution, self.num_heads, self.window_size,
-            self.shift_size, self.mlp_ratio)
+        return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
 
     def flops(self):
         flops = 0
@@ -408,8 +402,7 @@ class PatchMerging(nn.Layer):
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
-        assert H % 2 == 0 and W % 2 == 0, "x size ({}*{}) are not even.".format(
-            H, W)
+        assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
 
         x = x.reshape([B, H, W, C])
 
@@ -426,8 +419,7 @@ class PatchMerging(nn.Layer):
         return x
 
     def extra_repr(self):
-        return "input_resolution={}, dim={}".format(self.input_resolution,
-                                                    self.dim)
+        return f"input_resolution={self.input_resolution}, dim={self.dim}"
 
     def flops(self):
         H, W = self.input_resolution
@@ -511,13 +503,10 @@ class BasicLayer(nn.Layer):
         return x
 
     def extra_repr(self):
-        return "dim={}, input_resolution={}, depth={}".format(
-            self.dim, self.input_resolution, self.depth)
+        return f"dim={self.dim}, input_resolution={self.input_resolution}, depth={self.depth}"
 
     def flops(self):
-        flops = 0
-        for blk in self.blocks:
-            flops += blk.flops()
+        flops = sum(blk.flops() for blk in self.blocks)
         if self.downsample is not None:
             flops += self.downsample.flops()
         return flops
@@ -556,10 +545,7 @@ class PatchEmbed(nn.Layer):
 
         self.proj = nn.Conv2D(
             in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
-        if norm_layer is not None:
-            self.norm = norm_layer(embed_dim)
-        else:
-            self.norm = None
+        self.norm = norm_layer(embed_dim) if norm_layer is not None else None
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -722,7 +708,7 @@ class SwinTransformer(nn.Layer):
     def flops(self):
         flops = 0
         flops += self.patch_embed.flops()
-        for _, layer in enumerate(self.layers):
+        for layer in self.layers:
             flops += layer.flops()
         flops += self.num_features * self.patches_resolution[
             0] * self.patches_resolution[1] // (2**self.num_layers)

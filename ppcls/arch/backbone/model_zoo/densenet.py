@@ -53,10 +53,11 @@ class BNACConvLayer(nn.Layer):
         self._batch_norm = BatchNorm(
             num_channels,
             act=act,
-            param_attr=ParamAttr(name=name + '_bn_scale'),
-            bias_attr=ParamAttr(name + '_bn_offset'),
-            moving_mean_name=name + '_bn_mean',
-            moving_variance_name=name + '_bn_variance')
+            param_attr=ParamAttr(name=f'{name}_bn_scale'),
+            bias_attr=ParamAttr(f'{name}_bn_offset'),
+            moving_mean_name=f'{name}_bn_mean',
+            moving_variance_name=f'{name}_bn_variance',
+        )
 
         self._conv = Conv2D(
             in_channels=num_channels,
@@ -65,8 +66,9 @@ class BNACConvLayer(nn.Layer):
             stride=stride,
             padding=pad,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
 
     def forward(self, input):
         y = self._batch_norm(input)
@@ -85,7 +87,8 @@ class DenseLayer(nn.Layer):
             filter_size=1,
             pad=0,
             stride=1,
-            name=name + "_x1")
+            name=f"{name}_x1",
+        )
 
         self.bn_ac_func2 = BNACConvLayer(
             num_channels=bn_size * growth_rate,
@@ -93,7 +96,8 @@ class DenseLayer(nn.Layer):
             filter_size=3,
             pad=1,
             stride=1,
-            name=name + "_x2")
+            name=f"{name}_x2",
+        )
 
         if dropout:
             self.dropout_func = Dropout(p=dropout, mode="downscale_in_infer")
@@ -124,13 +128,16 @@ class DenseBlock(nn.Layer):
         for layer in range(num_layers):
             self.dense_layer_func.append(
                 self.add_sublayer(
-                    "{}_{}".format(name, layer + 1),
+                    f"{name}_{layer + 1}",
                     DenseLayer(
                         num_channels=pre_channel,
                         growth_rate=growth_rate,
                         bn_size=bn_size,
                         dropout=dropout,
-                        name=name + '_' + str(layer + 1))))
+                        name=f'{name}_{str(layer + 1)}',
+                    ),
+                )
+            )
             pre_channel = pre_channel + growth_rate
 
     def forward(self, input):
@@ -179,15 +186,17 @@ class ConvBNLayer(nn.Layer):
             stride=stride,
             padding=pad,
             groups=groups,
-            weight_attr=ParamAttr(name=name + "_weights"),
-            bias_attr=False)
+            weight_attr=ParamAttr(name=f"{name}_weights"),
+            bias_attr=False,
+        )
         self._batch_norm = BatchNorm(
             num_filters,
             act=act,
-            param_attr=ParamAttr(name=name + '_bn_scale'),
-            bias_attr=ParamAttr(name + '_bn_offset'),
-            moving_mean_name=name + '_bn_mean',
-            moving_variance_name=name + '_bn_variance')
+            param_attr=ParamAttr(name=f'{name}_bn_scale'),
+            bias_attr=ParamAttr(f'{name}_bn_offset'),
+            moving_mean_name=f'{name}_bn_mean',
+            moving_variance_name=f'{name}_bn_variance',
+        )
 
     def forward(self, input):
         y = self._conv(input)
@@ -200,9 +209,9 @@ class DenseNet(nn.Layer):
         super(DenseNet, self).__init__()
 
         supported_layers = [121, 161, 169, 201, 264]
-        assert layers in supported_layers, \
-            "supported layers are {} but input layer is {}".format(
-                supported_layers, layers)
+        assert (
+            layers in supported_layers
+        ), f"supported layers are {supported_layers} but input layer is {layers}"
         densenet_spec = {
             121: (64, 32, [6, 12, 24, 16]),
             161: (96, 48, [6, 12, 36, 24]),
@@ -232,14 +241,17 @@ class DenseNet(nn.Layer):
         for i, num_layers in enumerate(block_config):
             self.dense_block_func_list.append(
                 self.add_sublayer(
-                    "db_conv_{}".format(i + 2),
+                    f"db_conv_{i + 2}",
                     DenseBlock(
                         num_channels=pre_num_channels,
                         num_layers=num_layers,
                         bn_size=bn_size,
                         growth_rate=growth_rate,
                         dropout=dropout,
-                        name='conv' + str(i + 2))))
+                        name=f'conv{str(i + 2)}',
+                    ),
+                )
+            )
 
             num_features = num_features + num_layers * growth_rate
             pre_num_channels = num_features
@@ -247,11 +259,14 @@ class DenseNet(nn.Layer):
             if i != len(block_config) - 1:
                 self.transition_func_list.append(
                     self.add_sublayer(
-                        "tr_conv{}_blk".format(i + 2),
+                        f"tr_conv{i + 2}_blk",
                         TransitionLayer(
                             num_channels=pre_num_channels,
                             num_output_features=num_features // 2,
-                            name='conv' + str(i + 2) + "_blk")))
+                            name=f'conv{str(i + 2)}_blk',
+                        ),
+                    )
+                )
                 pre_num_channels = num_features // 2
                 num_features = num_features // 2
 

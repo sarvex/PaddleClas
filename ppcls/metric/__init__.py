@@ -38,10 +38,9 @@ class CombinedMetrics(nn.Layer):
 
     def __call__(self, *args, **kwargs):
         metric_dict = OrderedDict()
-        for idx, metric_func in enumerate(self.metric_func_list):
+        for metric_func in self.metric_func_list:
             metric_dict.update(metric_func(*args, **kwargs))
         return metric_dict
 
 def build_metrics(config):
-    metrics_list = CombinedMetrics(copy.deepcopy(config))
-    return metrics_list
+    return CombinedMetrics(copy.deepcopy(config))

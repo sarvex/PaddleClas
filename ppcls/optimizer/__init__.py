@@ -32,10 +32,7 @@ def build_lr_scheduler(lr_config, epochs, step_each_epoch):
     if 'name' in lr_config:
         lr_name = lr_config.pop('name')
         lr = getattr(learning_rate, lr_name)(**lr_config)
-        if isinstance(lr, paddle.optimizer.lr.LRScheduler):
-            return lr
-        else:
-            return lr()
+        return lr if isinstance(lr, paddle.optimizer.lr.LRScheduler) else lr()
     else:
         lr = lr_config['learning_rate']
     return lr
@@ -45,7 +42,7 @@ def build_optimizer(config, epochs, step_each_epoch, parameters):
     config = copy.deepcopy(config)
     # step1 build lr
     lr = build_lr_scheduler(config.pop('lr'), epochs, step_each_epoch)
-    logger.debug("build lr ({}) success..".format(lr))
+    logger.debug(f"build lr ({lr}) success..")
     # step2 build regularization
     if 'regularizer' in config and config['regularizer'] is not None:
         reg_config = config.pop('regularizer')
@@ -53,7 +50,7 @@ def build_optimizer(config, epochs, step_each_epoch, parameters):
         reg = getattr(paddle.regularizer, reg_name)(**reg_config)
     else:
         reg = None
-    logger.debug("build regularizer ({}) success..".format(reg))
+    logger.debug(f"build regularizer ({reg}) success..")
     # step3 build optimizer
     optim_name = config.pop('name')
     if 'clip_norm' in config:
@@ -65,5 +62,5 @@ def build_optimizer(config, epochs, step_each_epoch, parameters):
                                            weight_decay=reg,
                                            grad_clip=grad_clip,
                                            **config)(parameters=parameters)
-    logger.debug("build optimizer ({}) success..".format(optim))
+    logger.debug(f"build optimizer ({optim}) success..")
     return optim, lr

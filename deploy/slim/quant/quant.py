@@ -51,8 +51,7 @@ def parse_args():
         action='append',
         default=[],
         help='config options to be overridden')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def main(args):
@@ -94,7 +93,7 @@ def main(args):
     last_epoch_id = config.get("last_epoch", -1)
     best_top1_acc = 0.0  # best top1 acc record
     best_top1_epoch = last_epoch_id
-    for epoch_id in range(last_epoch_id + 1, config.epochs):
+    for epoch_id in range(best_top1_epoch + 1, config.epochs):
         net.train()
         # 1. train with train dataset
         program.run(train_dataloader, config, net, optimizer, lr_scheduler,

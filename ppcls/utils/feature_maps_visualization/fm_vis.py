@@ -75,7 +75,7 @@ def main():
     args = parse_args()
     operators = create_operators(args.interpolation)
     # assign the place
-    place = 'gpu:{}'.format(ParallelEnv().dev_id) if args.use_gpu else 'cpu'
+    place = f'gpu:{ParallelEnv().dev_id}' if args.use_gpu else 'cpu'
     place = paddle.set_device(place)
 
     net = ResNet50()
@@ -87,14 +87,14 @@ def main():
     data = paddle.to_tensor(data)
     net.eval()
     _, fm = net(data)
-    assert args.channel_num >= 0 and args.channel_num <= fm.shape[
-        1], "the channel is out of the range, should be in {} but got {}".format(
-            [0, fm.shape[1]], args.channel_num)
+    assert (
+        args.channel_num >= 0 and args.channel_num <= fm.shape[1]
+    ), f"the channel is out of the range, should be in {[0, fm.shape[1]]} but got {args.channel_num}"
 
     fm = (np.squeeze(fm[0][args.channel_num].numpy()) * 255).astype(np.uint8)
     fm = cv2.resize(fm, (img.shape[1], img.shape[0]))
     if args.save_path is not None:
-        print("the feature map is saved in path: {}".format(args.save_path))
+        print(f"the feature map is saved in path: {args.save_path}")
         cv2.imwrite(args.save_path, fm)
 
 

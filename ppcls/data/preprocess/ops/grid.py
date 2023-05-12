@@ -46,8 +46,8 @@ class GridMask(object):
             global CURR_EPOCH
             global NUM_EPOCHS
             print(
-                "self.prob is updated, self.prob={}, CURR_EPOCH: {}, NUM_EPOCHS: {}".
-                format(self.prob, CURR_EPOCH, NUM_EPOCHS))
+                f"self.prob is updated, self.prob={self.prob}, CURR_EPOCH: {CURR_EPOCH}, NUM_EPOCHS: {NUM_EPOCHS}"
+            )
             self.last_prob = self.prob
         # print("CURR_EPOCH: {}, NUM_EPOCHS: {}, self.prob is set as: {}".format(CURR_EPOCH, NUM_EPOCHS, self.prob) )
         if np.random.rand() > self.prob:

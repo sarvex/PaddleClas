@@ -180,14 +180,11 @@ def build(config, mode='train'):
     output_dtype = (types.FLOAT16 if 'AMP' in config and
                     config.AMP.get("use_pure_fp16", False) 
                     else types.FLOAT)
-    
+
     assert interp in interp_map, "interpolation method not supported by DALI"
     interp = interp_map[interp]
-    pad_output = False
     image_shape = config.get("image_shape", None)
-    if image_shape and image_shape[0] == 4:
-        pad_output = True
-
+    pad_output = bool(image_shape and image_shape[0] == 4)
     transforms = {
         k: v
         for d in dataset_config["transforms"] for k, v in d.items()

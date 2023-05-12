@@ -146,29 +146,42 @@ class Graph_Index(object):
         assert (len(gallery_docs) == self.total_num
                 if len(gallery_docs) > 0 else True)
 
-        print("training index -> num: {}, dim: {}, dist_type: {}".format(
-            self.total_num, self.dim, self.dist_type))
+        print(
+            f"training index -> num: {self.total_num}, dim: {self.dim}, dist_type: {self.dist_type}"
+        )
 
         if not os.path.exists(index_path):
             os.makedirs(index_path)
 
         if self.dist_type == "IP":
             build_mobius_index(
-                gallery_vectors, self.total_num, self.dim, pq_size,
+                gallery_vectors,
+                self.total_num,
+                self.dim,
+                pq_size,
                 self.mobius_pow,
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
             load_mobius_index_prefix(
-                self.total_num, self.dim,
+                self.total_num,
+                self.dim,
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
         else:
             build_l2_index(
-                gallery_vectors, self.total_num, self.dim, pq_size,
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                gallery_vectors,
+                self.total_num,
+                self.dim,
+                pq_size,
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
             load_l2_index_prefix(
-                self.total_num, self.dim,
+                self.total_num,
+                self.dim,
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
 
         self.gallery_doc_dict = {}
         if len(gallery_docs) > 0:
@@ -181,7 +194,7 @@ class Graph_Index(object):
         self.gallery_doc_dict["dist_type"] = self.dist_type
         self.gallery_doc_dict["with_attr"] = self.with_attr
 
-        with open(index_path + "/info.json", "w") as f:
+        with open(f"{index_path}/info.json", "w") as f:
             json.dump(self.gallery_doc_dict, f)
 
         print("finished creating index ...")
@@ -205,10 +218,8 @@ class Graph_Index(object):
                             ret_score)
 
         ret_id = ret_id.tolist()
-        ret_doc = []
         if self.with_attr:
-            for i in range(return_k):
-                ret_doc.append(self.gallery_doc_dict[str(ret_id[i])])
+            ret_doc = [self.gallery_doc_dict[str(ret_id[i])] for i in range(return_k)]
             return ret_score, ret_doc
         else:
             return ret_score, ret_id
@@ -221,19 +232,21 @@ class Graph_Index(object):
         if self.dist_type == "IP":
             save_mobius_index_prefix(
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
         else:
             save_l2_index_prefix(
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
 
-        with open(index_path + "/info.json", "w") as f:
+        with open(f"{index_path}/info.json", "w") as f:
             json.dump(self.gallery_doc_dict, f)
 
     def load(self, index_path):
         self.gallery_doc_dict = {}
 
-        with open(index_path + "/info.json", "r") as f:
+        with open(f"{index_path}/info.json", "r") as f:
             self.gallery_doc_dict = json.load(f)
 
         self.total_num = self.gallery_doc_dict["total_num"]
@@ -243,11 +256,15 @@ class Graph_Index(object):
 
         if self.dist_type == "IP":
             load_mobius_index_prefix(
-                self.total_num, self.dim,
+                self.total_num,
+                self.dim,
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )
         else:
             load_l2_index_prefix(
-                self.total_num, self.dim,
+                self.total_num,
+                self.dim,
                 ctypes.byref(self.index_context),
-                create_string_buffer((index_path + "/index").encode('utf-8')))
+                create_string_buffer(f"{index_path}/index".encode('utf-8')),
+            )

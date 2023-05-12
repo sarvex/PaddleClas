@@ -39,11 +39,7 @@ def fftfreqnd(h, w=None, z=None):
 
     if z is not None:
         fy = np.expand_dims(fy, -1)
-        if z % 2 == 1:
-            fz = np.fft.fftfreq(z)[:, None]
-        else:
-            fz = np.fft.fftfreq(z)[:, None]
-
+        fz = np.fft.fftfreq(z)[:, None]
     return np.sqrt(fx * fx + fy * fy + fz * fz)
 
 
@@ -100,12 +96,7 @@ def sample_lam(alpha, reformulate=False):
     :param alpha: Alpha value for beta distribution
     :param reformulate: If True, uses the reformulation of [1].
     """
-    if reformulate:
-        lam = beta.rvs(alpha + 1, alpha)
-    else:
-        lam = beta.rvs(alpha, alpha)
-
-    return lam
+    return beta.rvs(alpha + 1, alpha) if reformulate else beta.rvs(alpha, alpha)
 
 
 def binarise_mask(mask, lam, in_shape, max_soft=0.0):
@@ -123,7 +114,7 @@ def binarise_mask(mask, lam, in_shape, max_soft=0.0):
         lam * mask.size)
 
     eff_soft = max_soft
-    if max_soft > lam or max_soft > (1 - lam):
+    if eff_soft > lam or eff_soft > 1 - lam:
         eff_soft = min(lam, 1 - lam)
 
     soft = int(mask.size * eff_soft)

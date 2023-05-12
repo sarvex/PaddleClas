@@ -64,6 +64,4 @@ class Predictor(object):
         config.enable_memory_optim()
         # use zero copy
         config.switch_use_feed_fetch_ops(False)
-        predictor = create_predictor(config)
-
-        return predictor
+        return create_predictor(config)

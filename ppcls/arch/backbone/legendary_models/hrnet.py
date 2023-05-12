@@ -54,8 +54,7 @@ def _create_act(act):
     elif act is None:
         return Identity()
     else:
-        raise RuntimeError(
-            "The activation function is not supported: {}".format(act))
+        raise RuntimeError(f"The activation function is not supported: {act}")
 
 
 class ConvBNLayer(TheseusLayer):
@@ -224,7 +223,7 @@ class Stage(TheseusLayer):
         self._num_modules = num_modules
 
         self.stage_func_list = nn.LayerList()
-        for i in range(num_modules):
+        for _ in range(num_modules):
             self.stage_func_list.append(
                 HighResolutionModule(
                     num_filters=num_filters, has_se=has_se))
@@ -244,12 +243,17 @@ class HighResolutionModule(TheseusLayer):
 
         for i in range(len(num_filters)):
             self.basic_block_list.append(
-                nn.Sequential(*[
-                    BasicBlock(
-                        num_channels=num_filters[i],
-                        num_filters=num_filters[i],
-                        has_se=has_se) for j in range(4)
-                ]))
+                nn.Sequential(
+                    *[
+                        BasicBlock(
+                            num_channels=num_filters[i],
+                            num_filters=num_filters[i],
+                            has_se=has_se,
+                        )
+                        for _ in range(4)
+                    ]
+                )
+            )
 
         self.fuse_func = FuseLayers(
             in_channels=num_filters, out_channels=num_filters)
@@ -261,8 +265,7 @@ class HighResolutionModule(TheseusLayer):
             for basic_block_func in basic_block_list:
                 xi = basic_block_func(xi)
             out.append(xi)
-        out = self.fuse_func(out)
-        return out
+        return self.fuse_func(out)
 
 
 class FuseLayers(TheseusLayer):
@@ -320,7 +323,7 @@ class FuseLayers(TheseusLayer):
                     residual = paddle.add(x=residual, y=xj)
                 elif j < i:
                     xj = x[j]
-                    for k in range(i - j):
+                    for _ in range(i - j):
                         xj = self.residual_func_list[residual_func_idx](xj)
                         residual_func_idx += 1
 
@@ -394,14 +397,18 @@ class HRNet(TheseusLayer):
             stride=2,
             act="relu")
 
-        self.layer1 = nn.Sequential(*[
-            BottleneckBlock(
-                num_channels=64 if i == 0 else 256,
-                num_filters=64,
-                has_se=has_se,
-                stride=1,
-                downsample=True if i == 0 else False) for i in range(4)
-        ])
+        self.layer1 = nn.Sequential(
+            *[
+                BottleneckBlock(
+                    num_channels=64 if i == 0 else 256,
+                    num_filters=64,
+                    has_se=has_se,
+                    stride=1,
+                    downsample=i == 0,
+                )
+                for i in range(4)
+            ]
+        )
 
         self.conv_tr1_1 = ConvBNLayer(
             num_channels=256, num_filters=width, filter_size=3)

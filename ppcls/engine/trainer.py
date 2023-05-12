@@ -91,8 +91,7 @@ class Trainer(object):
             if not os.path.exists(vdl_writer_path):
                 os.makedirs(vdl_writer_path)
             self.vdl_writer = LogWriter(logdir=vdl_writer_path)
-        logger.info('train with paddle {} and device {}'.format(
-            paddle.__version__, self.device))
+        logger.info(f'train with paddle {paddle.__version__} and device {self.device}')
         # init members
         self.train_dataloader = None
         self.eval_dataloader = None
@@ -114,8 +113,8 @@ class Trainer(object):
             metric_config = self.config.get("Metric")
             if metric_config is not None:
                 metric_config = metric_config.get("Train")
-                if metric_config is not None:
-                    self.train_metric_func = build_metrics(metric_config)
+            if metric_config is not None:
+                self.train_metric_func = build_metrics(metric_config)
 
         if self.train_dataloader is None:
             self.train_dataloader = build_dataloader(self.config["DataLoader"],
@@ -131,13 +130,9 @@ class Trainer(object):
         print_batch_step = self.config['Global']['print_batch_step']
         save_interval = self.config["Global"]["save_interval"]
 
-        best_metric = {
-            "metric": 0.0,
-            "epoch": 0,
-        }
         # key: 
         # val: metrics list word
-        output_info = dict()
+        output_info = {}
         time_info = {
             "batch_cost": AverageMeter(
                 "batch_cost", '.5f', postfix=" s,"),
@@ -147,11 +142,15 @@ class Trainer(object):
         # global iter counter
         global_step = 0
 
+        best_metric = {
+            "metric": 0.0,
+            "epoch": 0,
+        }
         if self.config["Global"]["checkpoints"] is not None:
             metric_info = init_model(self.config["Global"], self.model,
                                      optimizer)
             if metric_info is not None:
-                best_metric.update(metric_info)
+                best_metric |= metric_info
 
         tic = time.time()
         for epoch_id in range(best_metric["epoch"] + 1,
@@ -159,24 +158,20 @@ class Trainer(object):
             acc = 0.0
             for iter_id, batch in enumerate(self.train_dataloader()):
                 if iter_id == 5:
-                    for key in time_info:
-                        time_info[key].reset()
+                    for value in time_info.values():
+                        value.reset()
                 time_info["reader_cost"].update(time.time() - tic)
                 batch_size = batch[0].shape[0]
                 batch[1] = batch[1].reshape([-1, 1]).astype("int64")
 
                 global_step += 1
                 # image input
-                if not self.is_rec:
-                    out = self.model(batch[0])
-                else:
-                    out = self.model(batch[0], batch[1])
-
+                out = self.model(batch[0], batch[1]) if self.is_rec else self.model(batch[0])
                 # calc loss
                 loss_dict = self.train_loss_func(out, batch[1])
 
                 for key in loss_dict:
-                    if not key in output_info:
+                    if key not in output_info:
                         output_info[key] = AverageMeter(key, '7.5f')
                     output_info[key].update(loss_dict[key].numpy()[0],
                                             batch_size)
@@ -184,7 +179,7 @@ class Trainer(object):
                 if self.train_metric_func is not None:
                     metric_dict = self.train_metric_func(out, batch[-1])
                     for key in metric_dict:
-                        if not key in output_info:
+                        if key not in output_info:
                             output_info[key] = AverageMeter(key, '7.5f')
                         output_info[key].update(metric_dict[key].numpy()[0],
                                                 batch_size)
@@ -216,19 +211,17 @@ class Trainer(object):
                     eta_msg = "eta: {:s}".format(
                         str(datetime.timedelta(seconds=int(eta_sec))))
                     logger.info(
-                        "[Train][Epoch {}/{}][Iter: {}/{}]{}, {}, {}, {}, {}".
-                        format(epoch_id, self.config["Global"][
-                            "epochs"], iter_id,
-                               len(self.train_dataloader), lr_msg, metric_msg,
-                               time_msg, ips_msg, eta_msg))
+                        f'[Train][Epoch {epoch_id}/{self.config["Global"]["epochs"]}][Iter: {iter_id}/{len(self.train_dataloader)}]{lr_msg}, {metric_msg}, {time_msg}, {ips_msg}, {eta_msg}'
+                    )
                 tic = time.time()
 
             metric_msg = ", ".join([
                 "{}: {:.5f}".format(key, output_info[key].avg)
                 for key in output_info
             ])
-            logger.info("[Train][Epoch {}/{}][Avg]{}".format(
-                epoch_id, self.config["Global"]["epochs"], metric_msg))
+            logger.info(
+                f'[Train][Epoch {epoch_id}/{self.config["Global"]["epochs"]}][Avg]{metric_msg}'
+            )
             output_info.clear()
 
             # eval model and save model if possible
@@ -246,19 +239,19 @@ class Trainer(object):
                         self.output_dir,
                         model_name=self.config["Arch"]["name"],
                         prefix="best_model")
-                logger.info("[Eval][Epoch {}][best metric: {}]".format(
-                    epoch_id, best_metric["metric"]))
+                logger.info(f'[Eval][Epoch {epoch_id}][best metric: {best_metric["metric"]}]')
                 self.model.train()
 
             # save model
             if epoch_id % save_interval == 0:
                 save_load.save_model(
                     self.model,
-                    optimizer, {"metric": acc,
-                                "epoch": epoch_id},
+                    optimizer,
+                    {"metric": acc, "epoch": epoch_id},
                     self.output_dir,
                     model_name=self.config["Arch"]["name"],
-                    prefix="epoch_{}".format(epoch_id))
+                    prefix=f"epoch_{epoch_id}",
+                )
                 # save the latest model
                 save_load.save_model(
                     self.model,
@@ -278,8 +271,8 @@ class Trainer(object):
             loss_config = self.config.get("Loss", None)
             if loss_config is not None:
                 loss_config = loss_config.get("Eval")
-                if loss_config is not None:
-                    self.eval_loss_func = build_loss(loss_config)
+            if loss_config is not None:
+                self.eval_loss_func = build_loss(loss_config)
         if self.eval_mode == "classification":
             if self.eval_dataloader is None:
                 self.eval_dataloader = build_dataloader(
@@ -289,8 +282,8 @@ class Trainer(object):
                 metric_config = self.config.get("Metric")
                 if metric_config is not None:
                     metric_config = metric_config.get("Eval")
-                    if metric_config is not None:
-                        self.eval_metric_func = build_metrics(metric_config)
+                if metric_config is not None:
+                    self.eval_metric_func = build_metrics(metric_config)
 
             eval_result = self.eval_cls(epoch_id)
 
@@ -312,14 +305,14 @@ class Trainer(object):
                 self.eval_metric_func = build_metrics(metric_config)
             eval_result = self.eval_retrieval(epoch_id)
         else:
-            logger.warning("Invalid eval mode: {}".format(self.eval_mode))
+            logger.warning(f"Invalid eval mode: {self.eval_mode}")
             eval_result = None
         self.model.train()
         return eval_result
 
     @paddle.no_grad()
     def eval_cls(self, epoch_id=0):
-        output_info = dict()
+        output_info = {}
         time_info = {
             "batch_cost": AverageMeter(
                 "batch_cost", '.5f', postfix=" s,"),
@@ -332,23 +325,20 @@ class Trainer(object):
         tic = time.time()
         for iter_id, batch in enumerate(self.eval_dataloader()):
             if iter_id == 5:
-                for key in time_info:
-                    time_info[key].reset()
+                for value in time_info.values():
+                    value.reset()
 
             time_info["reader_cost"].update(time.time() - tic)
             batch_size = batch[0].shape[0]
             batch[0] = paddle.to_tensor(batch[0]).astype("float32")
             batch[1] = batch[1].reshape([-1, 1]).astype("int64")
             # image input
-            if self.is_rec:
-                out = self.model(batch[0], batch[1])
-            else:
-                out = self.model(batch[0])
+            out = self.model(batch[0], batch[1]) if self.is_rec else self.model(batch[0])
             # calc loss
             if self.eval_loss_func is not None:
                 loss_dict = self.eval_loss_func(out, batch[-1])
                 for key in loss_dict:
-                    if not key in output_info:
+                    if key not in output_info:
                         output_info[key] = AverageMeter(key, '7.5f')
                     output_info[key].update(loss_dict[key].numpy()[0],
                                             batch_size)
@@ -365,7 +355,7 @@ class Trainer(object):
                 for key in metric_dict:
                     if metric_key is None:
                         metric_key = key
-                    if not key in output_info:
+                    if key not in output_info:
                         output_info[key] = AverageMeter(key, '7.5f')
 
                     output_info[key].update(metric_dict[key].numpy()[0],
@@ -386,9 +376,9 @@ class Trainer(object):
                     "{}: {:.5f}".format(key, output_info[key].val)
                     for key in output_info
                 ])
-                logger.info("[Eval][Epoch {}][Iter: {}/{}]{}, {}, {}".format(
-                    epoch_id, iter_id,
-                    len(self.eval_dataloader), metric_msg, time_msg, ips_msg))
+                logger.info(
+                    f"[Eval][Epoch {epoch_id}][Iter: {iter_id}/{len(self.eval_dataloader)}]{metric_msg}, {time_msg}, {ips_msg}"
+                )
 
             tic = time.time()
 
@@ -396,13 +386,10 @@ class Trainer(object):
             "{}: {:.5f}".format(key, output_info[key].avg)
             for key in output_info
         ])
-        logger.info("[Eval][Epoch {}][Avg]{}".format(epoch_id, metric_msg))
+        logger.info(f"[Eval][Epoch {epoch_id}][Avg]{metric_msg}")
 
         # do not try to save best model
-        if self.eval_metric_func is None:
-            return -1
-        # return 1st metric in the dict
-        return output_info[metric_key].avg
+        return -1 if self.eval_metric_func is None else output_info[metric_key].avg
 
     def eval_retrieval(self, epoch_id=0):
         self.model.eval()
@@ -428,7 +415,7 @@ class Trainer(object):
         if self.eval_metric_func is None:
             metric_dict = {metric_key: 0.}
         else:
-            metric_dict = dict()
+            metric_dict = {}
             for block_idx, block_fea in enumerate(fea_blocks):
                 similarity_matrix = paddle.matmul(
                     block_fea, gallery_feas, transpose_y=True)
@@ -463,7 +450,7 @@ class Trainer(object):
                 metric_key = key
             metric_info_list.append("{}: {:.5f}".format(key, metric_dict[key]))
         metric_msg = ", ".join(metric_info_list)
-        logger.info("[Eval][Epoch {}][Avg]{}".format(epoch_id, metric_msg))
+        logger.info(f"[Eval][Epoch {epoch_id}][Avg]{metric_msg}")
 
         return metric_dict[metric_key]
 
@@ -523,8 +510,9 @@ class Trainer(object):
                 paddle.distributed.all_gather(unique_id_list, all_unique_id)
                 all_unique_id = paddle.concat(unique_id_list, axis=0)
 
-        logger.info("Build {} done, all feat shape: {}, begin to eval..".
-                    format(name, all_feas.shape))
+        logger.info(
+            f"Build {name} done, all feat shape: {all_feas.shape}, begin to eval.."
+        )
         return all_feas, all_image_id, all_unique_id
 
     @paddle.no_grad()

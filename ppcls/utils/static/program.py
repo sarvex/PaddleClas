@@ -89,15 +89,14 @@ def create_model(architecture, image, classes_num, config, is_train):
     input_image_channel = config.get('image_shape', [3, 224, 224])[0]
     if input_image_channel != 3:
         logger.warning(
-            "Input image channel is changed to {}, maybe for better speed-up".
-            format(input_image_channel))
+            f"Input image channel is changed to {input_image_channel}, maybe for better speed-up"
+        )
         params["input_image_channel"] = input_image_channel
     if "is_test" in params:
         params['is_test'] = not is_train
     model = backbone.__dict__[name](class_dim=classes_num, **params)
 
-    out = model(image)
-    return out
+    return model(image)
 
 
 def create_loss(out,
@@ -140,8 +139,9 @@ def create_loss(out,
         return loss(out[0], out[1], out[2], target)
 
     if use_distillation:
-        assert len(out) == 2, ("distillation output length must be 2, "
-                               "but got {}".format(len(out)))
+        assert (
+            len(out) == 2
+        ), f"distillation output length must be 2, but got {len(out)}"
         loss = JSDivLoss(class_dim=classes_num, epsilon=epsilon)
         return loss(out[1], out[0])
 
@@ -177,10 +177,8 @@ def create_metric(out,
     if architecture["name"] == "GoogLeNet":
         assert len(out) == 3, "GoogLeNet should have 3 outputs"
         out = out[0]
-    else:
-        # just need student label to get metrics
-        if use_distillation:
-            out = out[1]
+    elif use_distillation:
+        out = out[1]
     softmax_out = F.softmax(out)
 
     fetchs = OrderedDict()
@@ -190,7 +188,7 @@ def create_metric(out,
     # set topk to fetchs
     k = min(topk, classes_num)
     topk = paddle.metric.accuracy(softmax_out, label=label, k=k)
-    topk_name = 'top{}'.format(k)
+    topk_name = f'top{k}'
     fetchs[topk_name] = (topk, AverageMeter(topk_name, '.4f', need_avg=True))
     return fetchs
 
@@ -292,7 +290,7 @@ def create_strategy(config):
         10000
         if 'AMP' in config and config.AMP.get("use_pure_fp16", False) else 10)
 
-    fuse_op = True if 'AMP' in config else False
+    fuse_op = 'AMP' in config
 
     fuse_bn_act_ops = config.get('fuse_bn_act_ops', fuse_op)
     fuse_elewise_add_act_ops = config.get('fuse_elewise_add_act_ops', fuse_op)
@@ -355,7 +353,7 @@ def dist_optimizer(config, optimizer):
 
 def mixed_precision_optimizer(config, optimizer):
     if 'AMP' in config:
-        amp_cfg = config.AMP if config.AMP else dict()
+        amp_cfg = config.AMP if config.AMP else {}
         scale_loss = amp_cfg.get('scale_loss', 1.0)
         use_dynamic_loss_scaling = amp_cfg.get('use_dynamic_loss_scaling',
                                                False)
@@ -442,14 +440,12 @@ def compile(config, program, loss_name=None, share_prog=None):
     """
     build_strategy, exec_strategy = create_strategy(config)
 
-    compiled_program = paddle.static.CompiledProgram(
-        program).with_data_parallel(
-            share_vars_from=share_prog,
-            loss_name=loss_name,
-            build_strategy=build_strategy,
-            exec_strategy=exec_strategy)
-
-    return compiled_program
+    return paddle.static.CompiledProgram(program).with_data_parallel(
+        share_vars_from=share_prog,
+        loss_name=loss_name,
+        build_strategy=build_strategy,
+        exec_strategy=exec_strategy,
+    )
 
 
 total_step = 0
@@ -488,7 +484,7 @@ def run(dataloader,
         ("reader_time", AverageMeter(
             'reader_cost', '.5f', postfix=" s,")),
     ]
-    topk_name = 'top{}'.format(config.topk)
+    topk_name = f'top{config.topk}'
     metric_list.insert(0, ("loss", fetchs["loss"][1]))
     use_mix = config.get("use_mix", False) and mode == "train"
     if not use_mix:
@@ -546,15 +542,19 @@ def run(dataloader,
         if mode == "train":
             metric_list['lr'].update(lr_scheduler.get_lr())
 
-        fetchs_str = ' '.join([
-            str(metric_list[key].mean)
-            if "time" in key else str(metric_list[key].value)
-            for key in metric_list
-        ])
         ips_info = " ips: {:.5f} images/sec.".format(
             batch_size / metric_list["batch_time"].avg)
-        fetchs_str += ips_info
-
+        fetchs_str = (
+            ' '.join(
+                [
+                    str(metric_list[key].mean)
+                    if "time" in key
+                    else str(metric_list[key].value)
+                    for key in metric_list
+                ]
+            )
+            + ips_info
+        )
         if lr_scheduler is not None:
             if lr_scheduler.update_specified:
                 curr_global_counter = lr_scheduler.step_each_epoch * epoch + idx

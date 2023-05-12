@@ -408,10 +408,7 @@ class PosCNN(nn.Layer):
         B, N, C = x.shape
         feat_token = x
         cnn_feat = feat_token.transpose([0, 2, 1]).reshape([B, C, H, W])
-        if self.s == 1:
-            x = self.proj(cnn_feat) + cnn_feat
-        else:
-            x = self.proj(cnn_feat)
+        x = self.proj(cnn_feat) + cnn_feat if self.s == 1 else self.proj(cnn_feat)
         x = x.flatten(2).transpose([0, 2, 1])
         return x
 

@@ -46,8 +46,7 @@ class DistributedRandomIdentitySampler(DistributedBatchSampler):
         for pid in self.pids:
             idxs = self.index_dic[pid]
             num = len(idxs)
-            if num < self.num_instances:
-                num = self.num_instances
+            num = max(num, self.num_instances)
             self.length += num - num % self.num_instances
 
     def __iter__(self):

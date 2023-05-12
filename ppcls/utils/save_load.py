@@ -38,18 +38,15 @@ def _mkdir_if_not_exist(path):
             os.makedirs(path)
         except OSError as e:
             if e.errno == errno.EEXIST and os.path.isdir(path):
-                logger.warning(
-                    'be happy if some process has already created {}'.format(
-                        path))
+                logger.warning(f'be happy if some process has already created {path}')
             else:
-                raise OSError('Failed to mkdir {}'.format(path))
+                raise OSError(f'Failed to mkdir {path}')
 
 
 def load_dygraph_pretrain(model, path=None):
-    if not (os.path.isdir(path) or os.path.exists(path + '.pdparams')):
-        raise ValueError("Model pretrain path {} does not "
-                         "exists.".format(path))
-    param_state_dict = paddle.load(path + ".pdparams")
+    if not (os.path.isdir(path) or os.path.exists(f'{path}.pdparams')):
+        raise ValueError(f"Model pretrain path {path} does not exists.")
+    param_state_dict = paddle.load(f"{path}.pdparams")
     model.set_dict(param_state_dict)
     return
 
@@ -76,13 +73,11 @@ def load_distillation_model(model, pretrained_model):
     student = model.student if hasattr(model,
                                        "student") else model._layers.student
     load_dygraph_pretrain(teacher, path=pretrained_model[0])
-    logger.info("Finish initing teacher model from {}".format(
-        pretrained_model))
+    logger.info(f"Finish initing teacher model from {pretrained_model}")
     # load student model
     if len(pretrained_model) >= 2:
         load_dygraph_pretrain(student, path=pretrained_model[1])
-        logger.info("Finish initing student model from {}".format(
-            pretrained_model))
+        logger.info(f"Finish initing student model from {pretrained_model}")
 
 
 def init_model(config, net, optimizer=None):
@@ -91,16 +86,18 @@ def init_model(config, net, optimizer=None):
     """
     checkpoints = config.get('checkpoints')
     if checkpoints and optimizer is not None:
-        assert os.path.exists(checkpoints + ".pdparams"), \
-            "Given dir {}.pdparams not exist.".format(checkpoints)
-        assert os.path.exists(checkpoints + ".pdopt"), \
-            "Given dir {}.pdopt not exist.".format(checkpoints)
-        para_dict = paddle.load(checkpoints + ".pdparams")
-        opti_dict = paddle.load(checkpoints + ".pdopt")
-        metric_dict = paddle.load(checkpoints + ".pdstates")
+        assert os.path.exists(
+            f"{checkpoints}.pdparams"
+        ), f"Given dir {checkpoints}.pdparams not exist."
+        assert os.path.exists(
+            f"{checkpoints}.pdopt"
+        ), f"Given dir {checkpoints}.pdopt not exist."
+        para_dict = paddle.load(f"{checkpoints}.pdparams")
+        opti_dict = paddle.load(f"{checkpoints}.pdopt")
+        metric_dict = paddle.load(f"{checkpoints}.pdstates")
         net.set_dict(para_dict)
         optimizer.set_state_dict(opti_dict)
-        logger.info("Finish load checkpoints from {}".format(checkpoints))
+        logger.info(f"Finish load checkpoints from {checkpoints}")
         return metric_dict
 
     pretrained_model = config.get('pretrained_model')
@@ -111,8 +108,11 @@ def init_model(config, net, optimizer=None):
         else:  # common load
             load_dygraph_pretrain(net, path=pretrained_model)
             logger.info(
-                logger.coloring("Finish load pretrained model from {}".format(
-                    pretrained_model), "HEADER"))
+                logger.coloring(
+                    f"Finish load pretrained model from {pretrained_model}",
+                    "HEADER",
+                )
+            )
 
 
 def save_model(net,
@@ -130,7 +130,7 @@ def save_model(net,
     _mkdir_if_not_exist(model_path)
     model_path = os.path.join(model_path, prefix)
 
-    paddle.save(net.state_dict(), model_path + ".pdparams")
-    paddle.save(optimizer.state_dict(), model_path + ".pdopt")
-    paddle.save(metric_info, model_path + ".pdstates")
-    logger.info("Already save model in {}".format(model_path))
+    paddle.save(net.state_dict(), f"{model_path}.pdparams")
+    paddle.save(optimizer.state_dict(), f"{model_path}.pdopt")
+    paddle.save(metric_info, f"{model_path}.pdstates")
+    logger.info(f"Already save model in {model_path}")

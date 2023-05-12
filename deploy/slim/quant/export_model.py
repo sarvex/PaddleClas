@@ -87,7 +87,7 @@ def main():
             paddle.static.InputSpec(
                 shape=[None, 3, args.img_size, args.img_size], dtype='float32')
         ])
-    print('inference QAT model is saved to {}'.format(save_path))
+    print(f'inference QAT model is saved to {save_path}')
 
 
 if __name__ == "__main__":

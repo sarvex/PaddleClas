@@ -39,7 +39,7 @@ def split_datafile(data_file, image_root, delimiter="\t"):
     gallery_docs = []
     with open(data_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-        for _, ori_line in enumerate(lines):
+        for ori_line in lines:
             line = ori_line.strip().split(delimiter)
             text_num = len(line)
             assert text_num >= 2, f"line({ori_line}) must be splitted into at least 2 parts, but got {text_num}"
@@ -74,7 +74,7 @@ class GalleryBuilder(object):
         for i, image_file in enumerate(tqdm(gallery_images)):
             img = cv2.imread(image_file)
             if img is None:
-                logger.error("img empty, please check {}".format(image_file))
+                logger.error(f"img empty, please check {image_file}")
                 exit()
             img = img[:, :, ::-1]
             rec_feat = self.rec_predictor.predict(img)

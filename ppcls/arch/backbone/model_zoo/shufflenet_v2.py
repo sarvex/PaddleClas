@@ -38,7 +38,7 @@ __all__ = list(MODEL_URLS.keys())
 
 
 def channel_shuffle(x, groups):
-    batch_size, num_channels, height, width = x.shape[0:4]
+    batch_size, num_channels, height, width = x.shape[:4]
     channels_per_group = num_channels // groups
 
     # reshape
@@ -73,16 +73,19 @@ class ConvBNLayer(Layer):
             padding=padding,
             groups=groups,
             weight_attr=ParamAttr(
-                initializer=KaimingNormal(), name=name + "_weights"),
-            bias_attr=False)
+                initializer=KaimingNormal(), name=f"{name}_weights"
+            ),
+            bias_attr=False,
+        )
 
         self._batch_norm = BatchNorm(
             out_channels,
-            param_attr=ParamAttr(name=name + "_bn_scale"),
-            bias_attr=ParamAttr(name=name + "_bn_offset"),
+            param_attr=ParamAttr(name=f"{name}_bn_scale"),
+            bias_attr=ParamAttr(name=f"{name}_bn_offset"),
             act=act,
-            moving_mean_name=name + "_bn_mean",
-            moving_variance_name=name + "_bn_variance")
+            moving_mean_name=f"{name}_bn_mean",
+            moving_variance_name=f"{name}_bn_variance",
+        )
 
     def forward(self, inputs):
         y = self._conv(inputs)
@@ -106,7 +109,8 @@ class InvertedResidual(Layer):
             padding=0,
             groups=1,
             act=act,
-            name='stage_' + name + '_conv1')
+            name=f'stage_{name}_conv1',
+        )
         self._conv_dw = ConvBNLayer(
             in_channels=out_channels // 2,
             out_channels=out_channels // 2,
@@ -115,7 +119,8 @@ class InvertedResidual(Layer):
             padding=1,
             groups=out_channels // 2,
             act=None,
-            name='stage_' + name + '_conv2')
+            name=f'stage_{name}_conv2',
+        )
         self._conv_linear = ConvBNLayer(
             in_channels=out_channels // 2,
             out_channels=out_channels // 2,
@@ -124,7 +129,8 @@ class InvertedResidual(Layer):
             padding=0,
             groups=1,
             act=act,
-            name='stage_' + name + '_conv3')
+            name=f'stage_{name}_conv3',
+        )
 
     def forward(self, inputs):
         x1, x2 = split(
@@ -156,7 +162,8 @@ class InvertedResidualDS(Layer):
             padding=1,
             groups=in_channels,
             act=None,
-            name='stage_' + name + '_conv4')
+            name=f'stage_{name}_conv4',
+        )
         self._conv_linear_1 = ConvBNLayer(
             in_channels=in_channels,
             out_channels=out_channels // 2,
@@ -165,7 +172,8 @@ class InvertedResidualDS(Layer):
             padding=0,
             groups=1,
             act=act,
-            name='stage_' + name + '_conv5')
+            name=f'stage_{name}_conv5',
+        )
         # branch2
         self._conv_pw_2 = ConvBNLayer(
             in_channels=in_channels,
@@ -175,7 +183,8 @@ class InvertedResidualDS(Layer):
             padding=0,
             groups=1,
             act=act,
-            name='stage_' + name + '_conv1')
+            name=f'stage_{name}_conv1',
+        )
         self._conv_dw_2 = ConvBNLayer(
             in_channels=out_channels // 2,
             out_channels=out_channels // 2,
@@ -184,7 +193,8 @@ class InvertedResidualDS(Layer):
             padding=1,
             groups=out_channels // 2,
             act=None,
-            name='stage_' + name + '_conv2')
+            name=f'stage_{name}_conv2',
+        )
         self._conv_linear_2 = ConvBNLayer(
             in_channels=out_channels // 2,
             out_channels=out_channels // 2,
@@ -193,7 +203,8 @@ class InvertedResidualDS(Layer):
             padding=0,
             groups=1,
             act=act,
-            name='stage_' + name + '_conv3')
+            name=f'stage_{name}_conv3',
+        )
 
     def forward(self, inputs):
         x1 = self._conv_dw_1(inputs)
@@ -226,8 +237,9 @@ class ShuffleNet(Layer):
         elif scale == 2.0:
             stage_out_channels = [-1, 24, 224, 488, 976, 2048]
         else:
-            raise NotImplementedError("This scale size:[" + str(scale) +
-                                      "] is not implemented!")
+            raise NotImplementedError(
+                f"This scale size:[{str(scale)}] is not implemented!"
+            )
         # 1. conv1
         self._conv1 = ConvBNLayer(
             in_channels=3,
@@ -245,22 +257,26 @@ class ShuffleNet(Layer):
             for i in range(num_repeat):
                 if i == 0:
                     block = self.add_sublayer(
-                        name=str(stage_id + 2) + '_' + str(i + 1),
+                        name=f'{str(stage_id + 2)}_{str(i + 1)}',
                         sublayer=InvertedResidualDS(
                             in_channels=stage_out_channels[stage_id + 1],
                             out_channels=stage_out_channels[stage_id + 2],
                             stride=2,
                             act=act,
-                            name=str(stage_id + 2) + '_' + str(i + 1)))
+                            name=f'{str(stage_id + 2)}_{str(i + 1)}',
+                        ),
+                    )
                 else:
                     block = self.add_sublayer(
-                        name=str(stage_id + 2) + '_' + str(i + 1),
+                        name=f'{str(stage_id + 2)}_{str(i + 1)}',
                         sublayer=InvertedResidual(
                             in_channels=stage_out_channels[stage_id + 2],
                             out_channels=stage_out_channels[stage_id + 2],
                             stride=1,
                             act=act,
-                            name=str(stage_id + 2) + '_' + str(i + 1)))
+                            name=f'{str(stage_id + 2)}_{str(i + 1)}',
+                        ),
+                    )
                 self._block_list.append(block)
         # 3. last_conv
         self._last_conv = ConvBNLayer(

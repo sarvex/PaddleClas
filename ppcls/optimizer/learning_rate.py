@@ -263,12 +263,11 @@ class MultiStepDecay(LRScheduler):
                  verbose=False):
         if not isinstance(milestones, (tuple, list)):
             raise TypeError(
-                "The type of 'milestones' in 'MultiStepDecay' must be 'tuple, list', but received %s."
-                % type(milestones))
-        if not all([
-                milestones[i] < milestones[i + 1]
-                for i in range(len(milestones) - 1)
-        ]):
+                f"The type of 'milestones' in 'MultiStepDecay' must be 'tuple, list', but received {type(milestones)}."
+            )
+        if any(
+            milestones[i] >= milestones[i + 1] for i in range(len(milestones) - 1)
+        ):
             raise ValueError('The elements of milestones must be incremented')
         if gamma >= 1.0:
             raise ValueError('gamma should be < 1.0.')
@@ -278,7 +277,11 @@ class MultiStepDecay(LRScheduler):
                                              verbose)
 
     def get_lr(self):
-        for i in range(len(self.milestones)):
-            if self.last_epoch < self.milestones[i]:
-                return self.base_lr * (self.gamma**i)
-        return self.base_lr * (self.gamma**len(self.milestones))
+        return next(
+            (
+                self.base_lr * (self.gamma**i)
+                for i in range(len(self.milestones))
+                if self.last_epoch < self.milestones[i]
+            ),
+            self.base_lr * (self.gamma ** len(self.milestones)),
+        )

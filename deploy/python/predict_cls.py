@@ -34,10 +34,9 @@ class ClsPredictor(Predictor):
 
         self.preprocess_ops = []
         self.postprocess = None
-        if "PreProcess" in config:
-            if "transform_ops" in config["PreProcess"]:
-                self.preprocess_ops = create_operators(config["PreProcess"][
-                    "transform_ops"])
+        if "PreProcess" in config and "transform_ops" in config["PreProcess"]:
+            self.preprocess_ops = create_operators(config["PreProcess"][
+                "transform_ops"])
         if "PostProcess" in config:
             self.postprocess = build_postprocess(config["PostProcess"])
 
@@ -58,8 +57,7 @@ class ClsPredictor(Predictor):
 
         input_tensor.copy_from_cpu(image)
         self.paddle_predictor.run()
-        batch_output = output_tensor.copy_to_cpu()
-        return batch_output
+        return output_tensor.copy_to_cpu()
 
 
 def main(config):
@@ -67,7 +65,7 @@ def main(config):
     image_list = get_image_list(config["Global"]["infer_imgs"])
 
     assert config["Global"]["batch_size"] == 1
-    for idx, image_file in enumerate(image_list):
+    for image_file in image_list:
         img = cv2.imread(image_file)[:, :, ::-1]
         output = cls_predictor.predict(img)
         output = cls_predictor.postprocess(output)

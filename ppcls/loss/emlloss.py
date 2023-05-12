@@ -34,13 +34,10 @@ class EmlLoss(paddle.nn.Layer):
 
     def surrogate_function(self, beta, theta, bias):
         x = theta * paddle.exp(bias)
-        output = paddle.log(1 + beta * x) / math.log(1 + beta)
-        return output
+        return paddle.log(1 + beta * x) / math.log(1 + beta)
 
     def surrogate_function_approximate(self, beta, theta, bias):
-        output = (
-            paddle.log(theta) + bias + math.log(beta)) / math.log(1 + beta)
-        return output
+        return (paddle.log(theta) + bias + math.log(beta)) / math.log(1 + beta)
 
     def surrogate_function_stable(self, beta, theta, target, thresh):
         max_gap = paddle.to_tensor(thresh, dtype='float32')
@@ -52,8 +49,7 @@ class EmlLoss(paddle.nn.Layer):
         loss1 = self.surrogate_function(beta, theta, target_min)
         loss2 = self.surrogate_function_approximate(beta, theta, target_max)
         bias = self.surrogate_function(beta, theta, max_gap)
-        loss = loss1 + loss2 - bias
-        return loss
+        return loss1 + loss2 - bias
 
     def forward(self, input, target=None):
         features = input["features"]
