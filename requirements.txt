@@ -6,5 +6,5 @@ tqdm
 PyYAML
 visualdl >= 2.0.0b
 scipy
-scikit-learn==0.23.2
+scikit-learn==1.0.1
 gast==0.3.3
